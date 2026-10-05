@@ -4,21 +4,92 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>減量進捗チェッカー</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;max-width:520px;margin:0 auto;padding:20px;background:#f5f5f5;color:#222}
+    h1{font-size:26px;margin-bottom:18px}
+    .card{background:white;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
+    .big{font-size:32px;font-weight:700}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:white;font-size:16px}
+    button.secondary{background:#777}
+    .bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:10px 0}
+    .fill{height:100%;background:#222;width:0%;transition:.3s}
+    .meal{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}
+    .meal:last-child{border-bottom:0}
+    .ok{font-weight:600}
+    small{color:#666}
+  </style>
 </head>
 <body>
-
   <h1>減量進捗チェッカー</h1>
 
-  <button onclick="testJavaScript()">JavaScriptテスト</button>
+  <div class="card">
+    <small>デモデータ</small>
+    <div class="big"><span id="weight">75.0</span> kg</div>
+    <div>目標：67.0 kg　あと <strong id="remaining">8.0</strong> kg</div>
+    <div class="bar"><div class="fill" id="progress"></div></div>
+    <small>減量進捗：<span id="percent">0</span>%</small>
+  </div>
 
-  <p id="result">まだテストしていません</p>
+  <div class="card">
+    <h2>今日の目標</h2>
+    <div class="grid">
+      <div>カロリー<br><strong>2,000 kcal</strong></div>
+      <div>たんぱく質<br><strong>200 g</strong></div>
+    </div>
+    <p>摂取：<strong id="calories">0</strong> kcal</p>
+    <p>残り：<strong id="remainingCalories">2,000</strong> kcal</p>
+  </div>
+
+  <div class="card">
+    <h2>食事デモ</h2>
+    <div class="meal"><span>朝食</span><strong>500 kcal</strong></div>
+    <div class="meal"><span>昼食</span><strong>650 kcal</strong></div>
+    <div class="meal"><span>間食</span><strong>200 kcal</strong></div>
+    <div class="meal"><span>夕食</span><strong>650 kcal</strong></div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <button onclick="addDemoMeal()">食事を記録</button>
+      <button class="secondary" onclick="resetDemo()">デモをリセット</button>
+    </div>
+    <p id="message" class="ok">デモデータを読み込みました</p>
+  </div>
 
   <script>
-    function testJavaScript() {
-      document.getElementById("result").textContent =
-        "JavaScriptが正常に動いています！";
-    }
-  </script>
+    const goalWeight = 67;
+    let weight = 75;
+    let calories = 0;
 
+    function render(){
+      const lost = 75 - weight;
+      const total = 75 - goalWeight;
+      const percent = Math.max(0, Math.min(100, lost / total * 100));
+      document.getElementById("weight").textContent = weight.toFixed(1);
+      document.getElementById("remaining").textContent = Math.max(0, weight-goalWeight).toFixed(1);
+      document.getElementById("percent").textContent = Math.round(percent);
+      document.getElementById("progress").style.width = percent + "%";
+      document.getElementById("calories").textContent = calories.toLocaleString();
+      document.getElementById("remainingCalories").textContent = Math.max(0,2000-calories).toLocaleString();
+    }
+
+    function addDemoMeal(){
+      calories += 500;
+      if(calories > 2000) calories = 2000;
+      document.getElementById("message").textContent =
+        "デモの食事を記録しました。残りカロリーを更新しました。";
+      render();
+    }
+
+    function resetDemo(){
+      weight = 75;
+      calories = 0;
+      document.getElementById("message").textContent = "デモデータをリセットしました";
+      render();
+    }
+
+    render();
+  </script>
 </body>
-</html> 
+</html>

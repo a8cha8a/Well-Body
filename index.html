@@ -191,11 +191,20 @@ function normalizeVoiceText(text){
   .trim();
 }
 
+const voiceAliases={
+ chicken:["鶏むね肉","鶏胸肉","鶏むね","鶏胸","胸肉","むね肉"],
+ egg:["鶏卵","卵","たまご"],
+ tofu:["木綿豆腐","木綿","豆腐"],
+ natto:["納豆"],
+ rice:["ご飯","ごはん","白米","お米","米"],
+ apple:["りんご","リンゴ","林檎"]
+};
+
 function parseVoiceAmount(text){
  const s=normalizeVoiceText(text);
- let m=s.match(/(\\d+(?:\\.\\d+)?)\\s*(?:g|グラム)/i);
+ let m=s.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
  if(m)return Number(m[1]);
- m=s.match(/(\\d+(?:\\.\\d+)?)\\s*(?:kg|キロ|キログラム)/i);
+ m=s.match(/(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
  if(m)return Number(m[1])*1000;
  const jp={"百":100,"二百":200,"三百":300,"四百":400,"五百":500,"六百":600,"七百":700,"八百":800,"九百":900};
  for(const k of Object.keys(jp)){
@@ -204,26 +213,49 @@ function parseVoiceAmount(text){
  return null;
 }
 
-function findFoodFromVoice(text){
- const s=normalizeVoiceText(text).toLowerCase();
- const aliases={
-  chicken:["鶏むね肉","鶏胸肉","鶏むね","鶏胸","胸肉","むね肉"],
-  egg:["鶏卵","卵","たまご"],
-  tofu:["木綿豆腐","木綿","豆腐"],
-  natto:["納豆"],
-  rice:["ご飯","ごはん","白米","お米","米"],
-  apple:["りんご","リンゴ","林檎"]
- };
- let best=null;
+function findFoodMatches(text){
+ const s=normalizeVoiceText(text);
+ const matches=[];
  for(const food of foodData){
-  const names=[food.name.split("（")[0],...(aliases[food.id]||[])];
+  const names=[food.name.split("（")[0],...(voiceAliases[food.id]||[])];
   for(const alias of names){
-   if(s.includes(alias.toLowerCase()) && (!best || alias.length>best.alias.length)){
-    best={food,alias};
+   let pos=0;
+   while(true){
+    const i=s.toLowerCase().indexOf(alias.toLowerCase(),pos);
+    if(i<0)break;
+    matches.push({food,alias,start:i,end:i+alias.length});
+    pos=i+alias.length;
    }
   }
  }
- return best?best.food:null;
+ matches.sort((a,b)=>a.start-b.start || b.alias.length-a.alias.length);
+ const selected=[];
+ for(const m of matches){
+  const overlap=selected.some(x=>m.start<x.end && x.start<m.end);
+  if(!overlap)selected.push(m);
+ }
+ return selected.sort((a,b)=>a.start-b.start);
+}
+
+function parseVoiceItems(text){
+ const s=normalizeVoiceText(text);
+ const foods=findFoodMatches(s);
+ const items=[];
+ for(let i=0;i<foods.length;i++){
+  const current=foods[i];
+  const nextStart=i+1<foods.length?foods[i+1].start:s.length;
+  const segment=s.slice(current.end,nextStart);
+  const grams=parseVoiceAmount(segment);
+  if(grams&&grams>0)items.push({food:current.food,grams});
+ }
+ return items;
+}
+
+function findFoodFromVoice(text){
+ const items=parseVoiceItems(text);
+ if(items.length)return items[0].food;
+ const matches=findFoodMatches(text);
+ return matches.length?matches[0].food:null;
 }
 
 function setVoiceUI(listening,message){
@@ -279,17 +311,19 @@ function toggleVoice(){
    const spoken=normalizeVoiceText(e.results[i][0].transcript);
    if(!spoken)continue;
    document.getElementById("voiceText").value=spoken;
-   const grams=parseVoiceAmount(spoken);
-   const hit=findFoodFromVoice(spoken);
-   if(hit&&grams){
-    queueVoiceItem(hit,grams);
-    msg.textContent="認識結果："+spoken+" ／ 食品："+hit.name+" ／ 量："+grams+"g ／ 複数入力に追加しました";
+   const items=parseVoiceItems(spoken);
+   if(items.length){
+    items.forEach(item=>queueVoiceItem(item.food,item.grams));
+    msg.textContent="認識結果："+spoken+" ／ "+items.length+"件を追加しました";
    }else{
+    const hit=findFoodFromVoice(spoken);
+    const grams=parseVoiceAmount(spoken);
     if(hit)document.getElementById("foodSelect").value=hit.id;
     if(grams)document.getElementById("foodGrams").value=grams;
     msg.textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
    }
   }
+ }
  };
 
  rec.onerror=e=>{
@@ -332,9 +366,7 @@ function renderVoiceItems(){
 }
 
 function queueVoiceItem(food,grams){
- const existing=voiceItems.find(v=>v.foodId===food.id);
- if(existing)existing.grams+=grams;
- else voiceItems.push({foodId:food.id,grams});
+ voiceItems.push({foodId:food.id,grams});
  document.getElementById("foodSelect").value=food.id;
  document.getElementById("foodGrams").value=grams;
  renderVoiceItems();

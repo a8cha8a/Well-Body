@@ -103,6 +103,11 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 
 <div class="card">
 <h2>食事を記録</h2>
+<div class="row">
+<label>音声入力<input id="voiceText" type="text" placeholder="例：鶏むね肉 150g"></label>
+<div><label>&nbsp;</label><button type="button" onclick="startVoice()">🎤 音声入力</button></div>
+</div>
+<p id="voiceMessage" class="muted">対応ブラウザでは音声入力結果から食品と量を自動設定します。</p>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
 <label>食品<select id="foodSelect"></select></label>
@@ -170,6 +175,27 @@ function loadMeals(){
   select.appendChild(o);
  });
  renderMeals();
+}
+
+function startVoice(){
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const msg=document.getElementById("voiceMessage");
+ if(!SpeechRecognition){msg.textContent="このブラウザでは音声入力機能を利用できません。";return;}
+ const rec=new SpeechRecognition();
+ rec.lang="ja-JP";rec.interimResults=false;rec.maxAlternatives=1;
+ msg.textContent="音声を聞いています…";
+ rec.onresult=e=>{
+  const spoken=e.results[0][0].transcript;
+  document.getElementById("voiceText").value=spoken;
+  const m=spoken.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
+  if(m)document.getElementById("foodGrams").value=m[1];
+  const hit=foodData.find(f=>spoken.includes(f.name.split("（")[0])||spoken.includes(f.name));
+  if(hit)document.getElementById("foodSelect").value=hit.id;
+  msg.textContent="認識結果："+spoken;
+ };
+ rec.onerror=()=>{msg.textContent="音声入力を開始できませんでした。";}
+ rec.onend=()=>{if(msg.textContent==="音声を聞いています…")msg.textContent="音声入力を終了しました。";}
+ rec.start();
 }
 
 function addMeal(){

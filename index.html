@@ -108,6 +108,8 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="toggleVoice()">🎤 音声入力</button></div>
 </div>
 <p id="voiceMessage" class="muted">対応ブラウザでは音声入力結果から食品と量を自動設定します。</p>
+<ul id="voiceItems" class="meal-list"></ul>
+<p id="voiceItemsEmpty" class="note">音声で複数の食品を続けて話すと、ここに順番に追加されます。</p>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
 <label>食品<select id="foodSelect"></select></label>
@@ -272,18 +274,22 @@ function toggleVoice(){
  };
 
  rec.onresult=e=>{
-  let spoken="";
   for(let i=e.resultIndex;i<e.results.length;i++){
-   spoken+=e.results[i][0].transcript;
+   if(!e.results[i].isFinal)continue;
+   const spoken=normalizeVoiceText(e.results[i][0].transcript);
+   if(!spoken)continue;
+   document.getElementById("voiceText").value=spoken;
+   const grams=parseVoiceAmount(spoken);
+   const hit=findFoodFromVoice(spoken);
+   if(hit&&grams){
+    queueVoiceItem(hit,grams);
+    msg.textContent="認識結果："+spoken+" ／ 食品："+hit.name+" ／ 量："+grams+"g ／ 複数入力に追加しました";
+   }else{
+    if(hit)document.getElementById("foodSelect").value=hit.id;
+    if(grams)document.getElementById("foodGrams").value=grams;
+    msg.textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
+   }
   }
-  spoken=normalizeVoiceText(spoken);
-  if(!spoken)return;
-  document.getElementById("voiceText").value=spoken;
-  const grams=parseVoiceAmount(spoken);
-  if(grams)document.getElementById("foodGrams").value=grams;
-  const hit=findFoodFromVoice(spoken);
-  if(hit)document.getElementById("foodSelect").value=hit.id;
-  msg.textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
  };
 
  rec.onerror=e=>{
@@ -309,15 +315,50 @@ function toggleVoice(){
  }
 }
 
+let voiceItems=[];
+
+function renderVoiceItems(){
+ const list=document.getElementById("voiceItems");
+ const empty=document.getElementById("voiceItemsEmpty");
+ if(!list||!empty)return;
+ list.innerHTML="";
+ empty.style.display=voiceItems.length?"none":"block";
+ voiceItems.forEach((item,index)=>{
+  const food=foodData.find(f=>f.id===item.foodId);
+  const li=document.createElement("li");
+  li.innerHTML="<strong>"+(index+1)+".</strong> "+food.name+" "+item.grams+"g";
+  list.appendChild(li);
+ });
+}
+
+function queueVoiceItem(food,grams){
+ const existing=voiceItems.find(v=>v.foodId===food.id);
+ if(existing)existing.grams+=grams;
+ else voiceItems.push({foodId:food.id,grams});
+ document.getElementById("foodSelect").value=food.id;
+ document.getElementById("foodGrams").value=grams;
+ renderVoiceItems();
+}
+
 function addMeal(){
  const type=document.getElementById("mealType").value;
- const foodId=document.getElementById("foodSelect").value;
- const grams=Number(document.getElementById("foodGrams").value);
- const food=foodData.find(f=>f.id===foodId);
- if(!food||!grams||grams<=0)return;
- meals.push({date:dateKey(),type,foodId,grams});
+ const items=voiceItems.length?[...voiceItems]:null;
+ if(items){
+  items.forEach(item=>{
+   const food=foodData.find(f=>f.id===item.foodId);
+   if(food)meals.push({date:dateKey(),type,foodId:item.foodId,grams:item.grams});
+  });
+  voiceItems=[];
+ }else{
+  const foodId=document.getElementById("foodSelect").value;
+  const grams=Number(document.getElementById("foodGrams").value);
+  const food=foodData.find(f=>f.id===foodId);
+  if(!food||!grams||grams<=0)return;
+  meals.push({date:dateKey(),type,foodId,grams});
+ }
  try{localStorage.setItem("wellBodyMeals",JSON.stringify(meals));}catch(e){}
  renderMeals();
+ renderVoiceItems();
  document.getElementById("foodGrams").value=100;
 }
 
@@ -560,6 +601,7 @@ function resetDemo(){
 
 loadData();
 loadMeals();
+renderVoiceItems();
 </script>
 </body>
 </html>

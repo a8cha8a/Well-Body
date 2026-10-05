@@ -74,6 +74,20 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
+<h2>今日の減量状況</h2>
+<div class="big"><span id="dashboardWeight">--.-</span> kg</div>
+<div>目標 <strong id="dashboardGoal">--.-</strong> kg　あと <strong id="dashboardLeft">--.-</strong> kg</div>
+<div class="bar"><div class="fill" id="dashboardProgress"></div></div>
+<div class="note">減量進捗：<span id="dashboardPercent">0</span>%</div>
+<div class="macro">
+<div>残りkcal<strong id="dashboardKcal">0</strong></div>
+<div>残りP<strong id="dashboardP">0.0g</strong></div>
+<div>残りF<strong id="dashboardF">0.0g</strong></div>
+<div>残りC<strong id="dashboardC">0.0g</strong></div>
+</div>
+</div>
+
+<div class="card">
 <h2>今日の残り目標</h2>
 <div class="result">
 残りカロリー：<strong id="remainingCalories">0</strong> kcal
@@ -373,6 +387,22 @@ function renderHistory(){
  });
 }
 
+function updateDashboard(){
+ const current=records.length?records[records.length-1].weight:plan.startWeight;
+ const goal=plan.goalWeight;
+ const total=Math.max(.1,plan.startWeight-goal);
+ const percent=Math.max(0,Math.min(100,(plan.startWeight-current)/total*100));
+ document.getElementById("dashboardWeight").textContent=current.toFixed(1);
+ document.getElementById("dashboardGoal").textContent=goal.toFixed(1);
+ document.getElementById("dashboardLeft").textContent=Math.max(0,current-goal).toFixed(1);
+ document.getElementById("dashboardProgress").style.width=Math.round(percent)+"%";
+ document.getElementById("dashboardPercent").textContent=Math.round(percent);
+ document.getElementById("dashboardKcal").textContent=document.getElementById("remainingCalories").textContent;
+ document.getElementById("dashboardP").textContent=document.getElementById("remainingP").textContent;
+ document.getElementById("dashboardF").textContent=document.getElementById("remainingF").textContent;
+ document.getElementById("dashboardC").textContent=document.getElementById("remainingC").textContent;
+}
+
 function resetDemo(){
  plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
  records=[];
@@ -388,6 +418,7 @@ function resetDemo(){
  document.getElementById("recordMessage").textContent="";
  renderMeals();
  renderChart();
+ updateDashboard();
 }
 
 loadData();

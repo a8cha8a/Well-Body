@@ -248,11 +248,14 @@ function resetDemo(){
  records=[];
  try{
   localStorage.removeItem("wellBodyPlan");
-  localStorage.removeItem("wellBodyWeightRecords");\n  localStorage.removeItem("wellBodyMeals");\n  meals=[];
+  localStorage.removeItem("wellBodyWeightRecords");
+  localStorage.removeItem("wellBodyMeals");
+  meals=[];
  }catch(e){}
  loadData();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";
  document.getElementById("recordMessage").textContent="";
+ renderMeals();
 }
 
 loadData();

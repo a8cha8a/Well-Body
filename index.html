@@ -105,7 +105,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <h2>食事を記録</h2>
 <div class="row">
 <label>音声入力<input id="voiceText" type="text" placeholder="例：鶏むね肉 150g"></label>
-<div><label>&nbsp;</label><button type="button" onclick="startVoice()">🎤 音声入力</button></div>
+<div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="toggleVoice()">🎤 音声入力</button></div>
 </div>
 <p id="voiceMessage" class="muted">対応ブラウザでは音声入力結果から食品と量を自動設定します。</p>
 <div class="form">
@@ -156,6 +156,7 @@ const foodData=[
  {id:"apple",name:"りんご",kcal:56,p:0.2,f:0.1,c:16.2}
 ];
 let meals=[];
+let activeRecognition=null;
 
 function dateKey(){
  const d=new Date();
@@ -177,24 +178,32 @@ function loadMeals(){
  renderMeals();
 }
 
-function startVoice(){
+function toggleVoice(){
  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
  const msg=document.getElementById("voiceMessage");
+ const button=document.getElementById("voiceButton");
  if(!SpeechRecognition){msg.textContent="このブラウザでは音声入力機能を利用できません。";return;}
+ if(activeRecognition){
+  activeRecognition.stop();
+  return;
+ }
  const rec=new SpeechRecognition();
+ activeRecognition=rec;
  rec.lang="ja-JP";rec.interimResults=false;rec.maxAlternatives=1;
- msg.textContent="音声を聞いています…";
+ button.textContent="■ 音声入力を終了";
+ msg.textContent="音声入力中… 終了するには「音声入力を終了」をタップしてください。";
  rec.onresult=e=>{
   const spoken=e.results[0][0].transcript;
   document.getElementById("voiceText").value=spoken;
   const m=spoken.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
   if(m)document.getElementById("foodGrams").value=m[1];
-  const hit=foodData.find(f=>spoken.includes(f.name.split("（")[0])||spoken.includes(f.name));
+  const normalized=spoken.replace(/鶏胸肉/g,"鶏むね肉").replace(/鶏むね/g,"鶏むね肉");
+  const hit=foodData.find(f=>normalized.includes(f.name.split("（")[0])||normalized.includes(f.name));
   if(hit)document.getElementById("foodSelect").value=hit.id;
-  msg.textContent="認識結果："+spoken;
+  msg.textContent="認識結果："+spoken+(hit?" ／ 食品を自動設定しました":"");
  };
- rec.onerror=()=>{msg.textContent="音声入力を開始できませんでした。";}
- rec.onend=()=>{if(msg.textContent==="音声を聞いています…")msg.textContent="音声入力を終了しました。";}
+ rec.onerror=()=>{msg.textContent="音声入力を開始できませんでした。";activeRecognition=null;button.textContent="🎤 音声入力";};
+ rec.onend=()=>{activeRecognition=null;button.textContent="🎤 音声入力";if(msg.textContent.startsWith("音声入力中"))msg.textContent="音声入力を終了しました。";};
  rec.start();
 }
 

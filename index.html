@@ -8,7 +8,7 @@
 *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;max-width:560px;margin:0 auto;padding:16px;background:#f5f5f5;color:#222}
 h1{font-size:26px;margin:4px 0 16px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
 h2{font-size:19px;margin:0 0 14px}.form{display:grid;gap:10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:13px;color:#555}input,select{width:100%;padding:11px;margin-top:4px;border:1px solid #ccc;border-radius:9px;background:#fff;font-size:16px}
-button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.secondary{background:#777}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}.history{margin:0;padding:0;list-style:none}.history li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.history li:last-child{border-bottom:0}
+button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.secondary{background:#777}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}.history{margin:0;padding:0;list-style:none}.history li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.history li:last-child{border-bottom:0}.meal-list{margin:0;padding:0;list-style:none}.meal-list li{padding:10px 0;border-bottom:1px solid #eee}.meal-list li:last-child{border-bottom:0}.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.macro div{background:#f5f5f5;border-radius:8px;padding:8px;text-align:center;font-size:12px}.macro strong{display:block;font-size:15px}.advice{background:#f5f5f5;border-radius:10px;padding:10px;margin-top:10px;font-size:13px}.danger{color:#b00020;font-weight:600}.muted{color:#666;font-size:12px}
 </style>
 </head>
 <body>
@@ -76,6 +76,84 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <script>
 let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55};
 let records=[];
+const foodData=[
+ {id:"chicken",name:"鶏むね肉（皮なし・調理済み）",kcal:165,p:31.0,f:3.6,c:0},
+ {id:"egg",name:"鶏卵",kcal:142,p:12.0,f:10.0,c:0.4},
+ {id:"tofu",name:"木綿豆腐",kcal:73,p:7.0,f:4.9,c:1.5},
+ {id:"natto",name:"納豆",kcal:190,p:16.5,f:10.0,c:12.1},
+ {id:"rice",name:"ご飯（白米）",kcal:156,p:2.5,f:0.3,c:35.6},
+ {id:"apple",name:"りんご",kcal:56,p:0.2,f:0.1,c:16.2}
+];
+let meals=[];
+
+function dateKey(){
+ const d=new Date();
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+function loadMeals(){
+ try{
+  const saved=localStorage.getItem("wellBodyMeals");
+  if(saved)meals=JSON.parse(saved);
+ }catch(e){meals=[]}
+ const select=document.getElementById("foodSelect");
+ select.innerHTML="";
+ foodData.forEach(f=>{
+  const o=document.createElement("option");
+  o.value=f.id;o.textContent=f.name;
+  select.appendChild(o);
+ });
+ renderMeals();
+}
+
+function addMeal(){
+ const type=document.getElementById("mealType").value;
+ const foodId=document.getElementById("foodSelect").value;
+ const grams=Number(document.getElementById("foodGrams").value);
+ const food=foodData.find(f=>f.id===foodId);
+ if(!food||!grams||grams<=0)return;
+ meals.push({date:dateKey(),type,foodId,grams});
+ try{localStorage.setItem("wellBodyMeals",JSON.stringify(meals));}catch(e){}
+ renderMeals();
+ document.getElementById("foodGrams").value=100;
+}
+
+function renderMeals(){
+ const today=dateKey();
+ const todays=meals.filter(m=>m.date===today);
+ const list=document.getElementById("mealHistory");
+ list.innerHTML="";
+ document.getElementById("mealEmpty").style.display=todays.length?"none":"block";
+ const totals={kcal:0,p:0,f:0,c:0};
+ todays.forEach((m,index)=>{
+  const food=foodData.find(f=>f.id===m.foodId);
+  if(!food)return;
+  const ratio=m.grams/100;
+  totals.kcal+=food.kcal*ratio;
+  totals.p+=food.p*ratio;
+  totals.f+=food.f*ratio;
+  totals.c+=food.c*ratio;
+  const li=document.createElement("li");
+  const typeName={breakfast:"朝食",lunch:"昼食",snack:"間食",dinner:"夕食"}[m.type];
+  li.innerHTML="<strong>"+typeName+"</strong> "+food.name+" "+m.grams+"g"
+   +"<br><span class='muted'>"+Math.round(food.kcal*ratio)+" kcal / P "+(food.p*ratio).toFixed(1)+"g / F "+(food.f*ratio).toFixed(1)+"g / C "+(food.c*ratio).toFixed(1)+"g</span>";
+  list.appendChild(li);
+ });
+ document.getElementById("todayCalories").textContent=Math.round(totals.kcal).toLocaleString();
+ document.getElementById("todayP").textContent=totals.p.toFixed(1)+"g";
+ document.getElementById("todayF").textContent=totals.f.toFixed(1)+"g";
+ document.getElementById("todayC").textContent=totals.c.toFixed(1)+"g";
+ document.getElementById("todayMealCount").textContent=todays.length;
+ const target=Number(document.getElementById("targetCal").textContent.replace(/,/g,""))||0;
+ if(todays.length&&target){
+  const rate=Math.round(totals.kcal/target*100);
+  document.getElementById("mealAdvice").textContent="今日の摂取は目標の"+rate+"%。P/F/Cはそれぞれ "+totals.p.toFixed(1)+"g / "+totals.f.toFixed(1)+"g / "+totals.c.toFixed(1)+"gです。";
+ }else{
+  document.getElementById("mealAdvice").textContent="食事を記録すると、今日のPFCバランスを表示します。";
+ }
+}
+
+
 
 function today(){
  const d=new Date();
@@ -170,7 +248,7 @@ function resetDemo(){
  records=[];
  try{
   localStorage.removeItem("wellBodyPlan");
-  localStorage.removeItem("wellBodyWeightRecords");
+  localStorage.removeItem("wellBodyWeightRecords");\n  localStorage.removeItem("wellBodyMeals");\n  meals=[];
  }catch(e){}
  loadData();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";

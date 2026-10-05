@@ -69,6 +69,33 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
+<h2>食事を記録</h2>
+<div class="form">
+<label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
+<label>食品<select id="foodSelect"></select></label>
+<div class="row">
+<label>量(g)<input id="foodGrams" type="number" min="1" step="1" value="100"></label>
+<div><label>&nbsp;</label><button onclick="addMeal()">食事を追加</button></div>
+</div>
+</div>
+<p class="muted">※現在は動作確認用の食品データです。後の工程で食品データを拡張します。</p>
+</div>
+
+<div class="card">
+<h2>今日の食事・PFC</h2>
+<div class="result">摂取カロリー：<strong id="todayCalories">0</strong> kcal</div>
+<div class="macro">
+<div>たんぱく質<strong id="todayP">0.0g</strong></div>
+<div>脂質<strong id="todayF">0.0g</strong></div>
+<div>炭水化物<strong id="todayC">0.0g</strong></div>
+<div>食事数<strong id="todayMealCount">0</strong></div>
+</div>
+<ul id="mealHistory" class="meal-list"></ul>
+<p id="mealEmpty" class="note">今日の食事はまだありません。</p>
+<div id="mealAdvice" class="advice">食事を記録すると、今日のPFCバランスを表示します。</div>
+</div>
+
+<div class="card">
 <button class="secondary" onclick="resetDemo()">デモを初期値に戻す</button>
 <p id="message" class="ok">デモデータを読み込みました</p>
 </div>
@@ -259,6 +286,7 @@ function resetDemo(){
 }
 
 loadData();
+loadMeals();
 </script>
 </body>
 </html>

@@ -8,7 +8,7 @@
 *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;max-width:560px;margin:0 auto;padding:16px;background:#f5f5f5;color:#222}
 h1{font-size:26px;margin:4px 0 16px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
 h2{font-size:19px;margin:0 0 14px}.form{display:grid;gap:10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:13px;color:#555}input,select{width:100%;padding:11px;margin-top:4px;border:1px solid #ccc;border-radius:9px;background:#fff;font-size:16px}
-button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}
+button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.secondary{background:#777}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}.history{margin:0;padding:0;list-style:none}.history li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.history li:last-child{border-bottom:0}
 </style>
 </head>
 <body>
@@ -23,7 +23,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 <div class="row">
 <label>身長(cm)<input id="height" type="number" value="170" min="100" max="250" step="0.1"></label>
-<label>現在体重(kg)<input id="weightInput" type="number" value="75" min="20" max="300" step="0.1"></label>
+<label>開始体重(kg)<input id="startWeight" type="number" value="75" min="20" max="300" step="0.1"></label>
 </div>
 <div class="row">
 <label>目標体重(kg)<input id="goalInput" type="number" value="67" min="20" max="300" step="0.1"></label>
@@ -44,7 +44,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
-<h2>減量進捗</h2>
+<h2>現在の減量状況</h2>
 <div class="big"><span id="current">75.0</span> kg</div>
 <div>目標 <strong id="goal">67.0</strong> kg　あと <strong id="left">8.0</strong> kg</div>
 <div class="bar"><div class="fill" id="progress"></div></div>
@@ -52,46 +52,132 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
-<button onclick="resetDemo()">デモを初期値に戻す</button>
+<h2>体重を記録</h2>
+<div class="row">
+<label>日付<input id="recordDate" type="date"></label>
+<label>体重(kg)<input id="recordWeight" type="number" step="0.1" min="20" max="300" value="75"></label>
+</div>
+<br>
+<button onclick="recordWeight()">体重を記録する</button>
+<p id="recordMessage" class="ok"></p>
+</div>
+
+<div class="card">
+<h2>体重履歴</h2>
+<ul id="history" class="history"></ul>
+<p id="historyEmpty" class="note">まだ体重記録がありません。</p>
+</div>
+
+<div class="card">
+<button class="secondary" onclick="resetDemo()">デモを初期値に戻す</button>
 <p id="message" class="ok">デモデータを読み込みました</p>
 </div>
 
 <script>
+let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55};
+let records=[];
+
+function today(){
+ const d=new Date();
+ const m=String(d.getMonth()+1).padStart(2,"0");
+ const day=String(d.getDate()).padStart(2,"0");
+ return d.getFullYear()+"-"+m+"-"+day;
+}
+
+function loadData(){
+ try{
+  const savedPlan=localStorage.getItem("wellBodyPlan");
+  const savedRecords=localStorage.getItem("wellBodyWeightRecords");
+  if(savedPlan) plan=JSON.parse(savedPlan);
+  if(savedRecords) records=JSON.parse(savedRecords);
+ }catch(e){}
+ document.getElementById("recordDate").value=today();
+ document.getElementById("recordWeight").value=(records.length?records[records.length-1].weight:plan.startWeight);
+ document.getElementById("sex").value=plan.sex;
+ document.getElementById("age").value=plan.age;
+ document.getElementById("height").value=plan.height;
+ document.getElementById("startWeight").value=plan.startWeight;
+ document.getElementById("goalInput").value=plan.goalWeight;
+ document.getElementById("activity").value=String(plan.activity);
+ calculate();
+ renderHistory();
+}
+
 function calculate(){
  const sex=document.getElementById("sex").value;
  const age=Number(document.getElementById("age").value);
  const height=Number(document.getElementById("height").value);
- const weight=Number(document.getElementById("weightInput").value);
+ const startWeight=Number(document.getElementById("startWeight").value);
  const goal=Number(document.getElementById("goalInput").value);
  const activity=Number(document.getElementById("activity").value);
- if(!age||!height||!weight||!goal){return}
- const bmr=sex==="male"?10*weight+6.25*height-5*age+5:10*weight+6.25*height-5*age-161;
+ if(!age||!height||!startWeight||!goal)return;
+ plan={sex,age,height,startWeight,goalWeight:goal,activity};
+ try{localStorage.setItem("wellBodyPlan",JSON.stringify(plan));}catch(e){}
+ const current=records.length?records[records.length-1].weight:startWeight;
+ const bmr=sex==="male"?10*current+6.25*height-5*age+5:10*current+6.25*height-5*age-161;
  const tdee=bmr*activity;
  const target=Math.max(1200,Math.round(tdee-500));
  document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
  document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
- document.getElementById("remain").textContent=Math.max(0,weight-goal).toFixed(1);
+ document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
  document.getElementById("targetCal").textContent=target.toLocaleString();
- document.getElementById("current").textContent=weight.toFixed(1);
+ updateProgress(current);
+}
+
+function updateProgress(current){
+ const goal=plan.goalWeight;
+ const start=plan.startWeight;
+ document.getElementById("current").textContent=current.toFixed(1);
  document.getElementById("goal").textContent=goal.toFixed(1);
- document.getElementById("left").textContent=Math.max(0,weight-goal).toFixed(1);
- const total=Math.max(.1,75-goal), lost=75-weight;
+ document.getElementById("left").textContent=Math.max(0,current-goal).toFixed(1);
+ const total=Math.max(.1,start-goal);
+ const lost=start-current;
  const percent=Math.max(0,Math.min(100,lost/total*100));
  document.getElementById("percent").textContent=Math.round(percent);
  document.getElementById("progress").style.width=percent+"%";
- document.getElementById("message").textContent="入力値から計算結果を更新しました";
 }
-function resetDemo(){
- document.getElementById("sex").value="male";
- document.getElementById("age").value=36;
- document.getElementById("height").value=170;
- document.getElementById("weightInput").value=75;
- document.getElementById("goalInput").value=67;
- document.getElementById("activity").value="1.55";
+
+function recordWeight(){
+ const date=document.getElementById("recordDate").value;
+ const weight=Number(document.getElementById("recordWeight").value);
+ if(!date||!weight){
+  document.getElementById("recordMessage").textContent="日付と体重を入力してください。";
+  return;
+ }
+ const existing=records.findIndex(r=>r.date===date);
+ if(existing>=0)records[existing]={date,weight};else records.push({date,weight});
+ records.sort((a,b)=>a.date.localeCompare(b.date));
+ try{localStorage.setItem("wellBodyWeightRecords",JSON.stringify(records));}catch(e){}
  calculate();
- document.getElementById("message").textContent="デモデータを初期値に戻しました";
+ renderHistory();
+ document.getElementById("recordMessage").textContent=date+"の体重を"+weight.toFixed(1)+"kgで記録しました。";
 }
-calculate();
+
+function renderHistory(){
+ const list=document.getElementById("history");
+ list.innerHTML="";
+ const sorted=[...records].sort((a,b)=>b.date.localeCompare(a.date));
+ document.getElementById("historyEmpty").style.display=sorted.length?"none":"block";
+ sorted.forEach(r=>{
+  const li=document.createElement("li");
+  li.innerHTML="<span>"+r.date+"</span><strong>"+Number(r.weight).toFixed(1)+" kg</strong>";
+  list.appendChild(li);
+ });
+}
+
+function resetDemo(){
+ plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55};
+ records=[];
+ try{
+  localStorage.removeItem("wellBodyPlan");
+  localStorage.removeItem("wellBodyWeightRecords");
+ }catch(e){}
+ loadData();
+ document.getElementById("message").textContent="デモデータを初期値に戻しました";
+ document.getElementById("recordMessage").textContent="";
+}
+
+loadData();
 </script>
 </body>
 </html>

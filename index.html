@@ -181,6 +181,7 @@ function loadMeals(){
 }
 
 let voiceListening=false;
+let activeRecognition=null;
 
 function normalizeVoiceText(text){
  return String(text||"")
@@ -202,14 +203,12 @@ const voiceAliases={
 
 function parseVoiceAmount(text){
  const s=normalizeVoiceText(text);
- let m=s.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
- if(m)return Number(m[1]);
- m=s.match(/(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
+ let m=s.match(/(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
  if(m)return Number(m[1])*1000;
+ m=s.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
+ if(m)return Number(m[1]);
  const jp={"百":100,"二百":200,"三百":300,"四百":400,"五百":500,"六百":600,"七百":700,"八百":800,"九百":900};
- for(const k of Object.keys(jp)){
-  if(s.includes(k+"グラム"))return jp[k];
- }
+ for(const k of Object.keys(jp))if(s.includes(k+"グラム"))return jp[k];
  return null;
 }
 
@@ -261,91 +260,104 @@ function findFoodFromVoice(text){
 function setVoiceUI(listening,message){
  const button=document.getElementById("voiceButton");
  const msg=document.getElementById("voiceMessage");
- if(listening){
-  button.textContent="■ 音声入力を終了";
-  msg.textContent=message||"音声入力中… 終了するには「音声入力を終了」をタップしてください。";
- }else{
-  button.textContent="🎤 音声入力";
-  msg.textContent=message||"音声入力を終了しました。";
- }
+ if(!button||!msg)return;
+ button.textContent=listening?"■ 音声入力を終了":"🎤 音声入力";
+ msg.textContent=message||(listening?"音声入力中… 終了するには「音声入力を終了」をタップしてください。":"音声入力を終了しました。");
 }
 
 function stopVoice(){
  voiceListening=false;
  const rec=activeRecognition;
  activeRecognition=null;
- if(rec){
-  try{rec.stop();}catch(e){}
- }
+ if(rec)try{rec.abort();}catch(e){}
  setVoiceUI(false,"音声入力を終了しました。");
+}
+
+function startVoiceRecognition(){
+ if(!voiceListening)return;
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SpeechRecognition){
+  voiceListening=false;
+  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
+  return;
+ }
+ const rec=new SpeechRecognition();
+ activeRecognition=rec;
+ rec.lang="ja-JP";
+ rec.continuous=false;
+ rec.interimResults=false;
+ rec.maxAlternatives=1;
+
+ rec.onstart=()=>{
+  if(voiceListening)setVoiceUI(true,"音声入力中… 「鶏むね肉150グラム」のように話してください。終了するときはボタンをタップしてください。");
+ };
+
+ rec.onresult=e=>{
+  if(!voiceListening)return;
+  const spoken=normalizeVoiceText(e.results[e.resultIndex][0].transcript);
+  if(!spoken)return;
+  document.getElementById("voiceText").value=spoken;
+  const items=parseVoiceItems(spoken);
+  if(items.length){
+   items.forEach(item=>queueVoiceItem(item.food,item.grams));
+   document.getElementById("voiceMessage").textContent="認識結果："+spoken+" ／ "+items.length+"件を追加しました。続けて話せます。";
+  }else{
+   const hit=findFoodFromVoice(spoken);
+   const grams=parseVoiceAmount(spoken);
+   if(hit)document.getElementById("foodSelect").value=hit.id;
+   if(grams)document.getElementById("foodGrams").value=grams;
+   document.getElementById("voiceMessage").textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
+  }
+ };
+
+ rec.onerror=e=>{
+  const err=e&&e.error?e.error:"unknown";
+  if(!voiceListening)return;
+  if(err==="no-speech"){
+   setVoiceUI(true,"音声が聞き取れませんでした。もう一度話してください。終了するにはボタンをタップしてください。");
+   activeRecognition=null;
+   setTimeout(()=>startVoiceRecognition(),250);
+   return;
+  }
+  voiceListening=false;
+  activeRecognition=null;
+  const message=err==="not-allowed"||err==="service-not-allowed"
+   ?"マイクまたは音声認識が許可されていません。Safariのマイク許可を確認してください。"
+   :"音声入力エラー："+err+"。もう一度お試しください。";
+  setVoiceUI(false,message);
+ };
+
+ rec.onend=()=>{
+  activeRecognition=null;
+  if(!voiceListening)return;
+  setVoiceUI(true,"次の食品を話してください。終了するには「音声入力を終了」をタップしてください。");
+  setTimeout(()=>startVoiceRecognition(),150);
+ };
+
+ try{
+  rec.start();
+ }catch(e){
+  activeRecognition=null;
+  if(voiceListening){
+   voiceListening=false;
+   setVoiceUI(false,"音声入力を開始できませんでした。Safariのマイク許可を確認してください。");
+  }
+ }
 }
 
 function toggleVoice(){
  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SpeechRecognition){
-  setVoiceUI(false,"このブラウザでは音声入力機能を利用できません。");
+  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
   return;
  }
  if(voiceListening){
   stopVoice();
   return;
  }
- const msg=document.getElementById("voiceMessage");
- const button=document.getElementById("voiceButton");
- const rec=new SpeechRecognition();
- activeRecognition=rec;
  voiceListening=true;
- rec.lang="ja-JP";
- rec.continuous=true;
- rec.interimResults=true;
- rec.maxAlternatives=3;
- setVoiceUI(true,"音声入力中… 「鶏むね肉150グラム」のように話してください。終了するときはボタンをタップしてください。");
-
- rec.onstart=()=>{
-  if(voiceListening)setVoiceUI(true,"音声入力中… 「■ 音声入力を終了」をタップすると終了できます。");
- };
-
- rec.onresult=e=>{
-  for(let i=e.resultIndex;i<e.results.length;i++){
-   if(!e.results[i].isFinal)continue;
-   const spoken=normalizeVoiceText(e.results[i][0].transcript);
-   if(!spoken)continue;
-   document.getElementById("voiceText").value=spoken;
-   const items=parseVoiceItems(spoken);
-   if(items.length){
-    items.forEach(item=>queueVoiceItem(item.food,item.grams));
-    msg.textContent="認識結果："+spoken+" ／ "+items.length+"件を追加しました";
-   }else{
-    const hit=findFoodFromVoice(spoken);
-    const grams=parseVoiceAmount(spoken);
-    if(hit)document.getElementById("foodSelect").value=hit.id;
-    if(grams)document.getElementById("foodGrams").value=grams;
-    msg.textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
-   }
-  }
- };
-
- rec.onerror=e=>{
-  if(e&&e.error==="aborted"&&!voiceListening)return;
-  voiceListening=false;
-  activeRecognition=null;
-  setVoiceUI(false,"音声入力エラー："+((e&&e.error)||"unknown")+"。もう一度お試しください。");
- };
-
- rec.onend=()=>{
-  if(!voiceListening)return;
-  activeRecognition=null;
-  setVoiceUI(false,"音声入力が自動終了しました。もう一度「音声入力」をタップしてください。");
- };
-
- try{
-  rec.start();
- }catch(e){
-  voiceListening=false;
-  activeRecognition=null;
-  button.textContent="🎤 音声入力";
-  msg.textContent="音声入力を開始できませんでした。Safariのマイク許可を確認してください。";
- }
+ setVoiceUI(true,"音声入力を開始しています…");
+ startVoiceRecognition();
 }
 
 let voiceItems=[];

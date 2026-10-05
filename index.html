@@ -69,6 +69,20 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
+<h2>今日の残り目標</h2>
+<div class="result">
+残りカロリー：<strong id="remainingCalories">0</strong> kcal
+</div>
+<div class="macro">
+<div>残りP<strong id="remainingP">0.0g</strong></div>
+<div>残りF<strong id="remainingF">0.0g</strong></div>
+<div>残りC<strong id="remainingC">0.0g</strong></div>
+<div>達成率<strong id="calorieRate">0%</strong></div>
+</div>
+<div id="remainingAdvice" class="advice">今日の食事を記録すると、残りの目標量を表示します。</div>
+</div>
+
+<div class="card">
 <h2>食事を記録</h2>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
@@ -172,11 +186,25 @@ function renderMeals(){
  document.getElementById("todayC").textContent=totals.c.toFixed(1)+"g";
  document.getElementById("todayMealCount").textContent=todays.length;
  const target=Number(document.getElementById("targetCal").textContent.replace(/,/g,""))||0;
+ const pTarget=Number((target*0.4/4).toFixed(1));
+ const fTarget=Number((target*0.2/9).toFixed(1));
+ const cTarget=Number((target*0.4/4).toFixed(1));
+ const remainKcal=Math.max(0,target-totals.kcal);
+ const remainP=Math.max(0,pTarget-totals.p);
+ const remainF=Math.max(0,fTarget-totals.f);
+ const remainC=Math.max(0,cTarget-totals.c);
+ const rate=target?Math.min(100,Math.round(totals.kcal/target*100)):0;
+ document.getElementById("remainingCalories").textContent=Math.round(remainKcal).toLocaleString();
+ document.getElementById("remainingP").textContent=remainP.toFixed(1)+"g";
+ document.getElementById("remainingF").textContent=remainF.toFixed(1)+"g";
+ document.getElementById("remainingC").textContent=remainC.toFixed(1)+"g";
+ document.getElementById("calorieRate").textContent=rate+"%";
  if(todays.length&&target){
-  const rate=Math.round(totals.kcal/target*100);
   document.getElementById("mealAdvice").textContent="今日の摂取は目標の"+rate+"%。P/F/Cはそれぞれ "+totals.p.toFixed(1)+"g / "+totals.f.toFixed(1)+"g / "+totals.c.toFixed(1)+"gです。";
+  document.getElementById("remainingAdvice").textContent="目標まで、あと "+Math.round(remainKcal)+" kcal / P "+remainP.toFixed(1)+"g / F "+remainF.toFixed(1)+"g / C "+remainC.toFixed(1)+"gです。";
  }else{
   document.getElementById("mealAdvice").textContent="食事を記録すると、今日のPFCバランスを表示します。";
+  document.getElementById("remainingAdvice").textContent="今日の食事を記録すると、残りの目標量を表示します。";
  }
 }
 

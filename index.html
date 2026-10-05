@@ -110,6 +110,12 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <div class="card">
+<h2>減量推移</h2>
+<canvas id="weightChart" width="520" height="260" style="width:100%;height:auto;display:block"></canvas>
+<p id="trendSummary" class="note">体重を2件以上記録すると推移グラフを表示します。</p>
+</div>
+
+<div class="card">
 <button class="secondary" onclick="resetDemo()">デモを初期値に戻す</button>
 <p id="message" class="ok">デモデータを読み込みました</p>
 </div>
@@ -234,6 +240,7 @@ function loadData(){
  document.getElementById("activity").value=String(plan.activity);
  calculate();
  renderHistory();
+ renderChart();
 }
 
 function calculate(){
@@ -283,7 +290,49 @@ function recordWeight(){
  try{localStorage.setItem("wellBodyWeightRecords",JSON.stringify(records));}catch(e){}
  calculate();
  renderHistory();
+ renderChart();
  document.getElementById("recordMessage").textContent=date+"の体重を"+weight.toFixed(1)+"kgで記録しました。";
+}
+
+function renderChart(){
+ const canvas=document.getElementById("weightChart");
+ const ctx=canvas.getContext("2d");
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+ const data=[...records].sort((a,b)=>a.date.localeCompare(b.date));
+ if(data.length<2){
+  ctx.fillStyle="#888";ctx.font="14px -apple-system,BlinkMacSystemFont,sans-serif";ctx.textAlign="center";
+  ctx.fillText("体重を2件以上記録するとグラフが表示されます",w/2,h/2);
+  document.getElementById("trendSummary").textContent="体重を2件以上記録すると推移グラフを表示します。";
+  return;
+ }
+ const pad={l:42,r:14,t:18,b:34};
+ const vals=data.map(d=>Number(d.weight));
+ let min=Math.min(...vals),max=Math.max(...vals);
+ const range=Math.max(1,max-min);
+ min-=range*0.15;max+=range*0.15;
+ const x=i=>pad.l+(w-pad.l-pad.r)*(i/(data.length-1));
+ const y=v=>pad.t+(h-pad.t-pad.b)*(1-(v-min)/(max-min));
+ ctx.strokeStyle="#ddd";ctx.lineWidth=1;
+ for(let i=0;i<4;i++){
+  const yy=pad.t+(h-pad.t-pad.b)*i/3;
+  ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+ }
+ ctx.fillStyle="#666";ctx.font="12px -apple-system,BlinkMacSystemFont,sans-serif";ctx.textAlign="right";
+ for(let i=0;i<4;i++){
+  const v=max-(max-min)*i/3;
+  const yy=pad.t+(h-pad.t-pad.b)*i/3;
+  ctx.fillText(v.toFixed(1)+"kg",pad.l-6,yy+4);
+ }
+ ctx.strokeStyle="#222";ctx.lineWidth=2;ctx.beginPath();
+ data.forEach((d,i)=>{const xx=x(i),yy=y(Number(d.weight));if(i===0)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy);});ctx.stroke();
+ ctx.fillStyle="#222";
+ data.forEach((d,i)=>{ctx.beginPath();ctx.arc(x(i),y(Number(d.weight)),4,0,Math.PI*2);ctx.fill();});
+ ctx.fillStyle="#666";ctx.textAlign="center";
+ ctx.fillText(data[0].date.slice(5),x(0),h-10);
+ ctx.fillText(data[data.length-1].date.slice(5),x(data.length-1),h-10);
+ const first=Number(data[0].weight),last=Number(data[data.length-1].weight),diff=last-first;
+ document.getElementById("trendSummary").textContent="記録期間："+data[0].date+"〜"+data[data.length-1].date+" ／ 変化："+(diff>0?"+":"")+diff.toFixed(1)+" kg";
 }
 
 function renderHistory(){
@@ -308,9 +357,11 @@ function resetDemo(){
   meals=[];
  }catch(e){}
  loadData();
+ renderChart();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";
  document.getElementById("recordMessage").textContent="";
  renderMeals();
+ renderChart();
 }
 
 loadData();

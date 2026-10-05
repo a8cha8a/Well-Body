@@ -16,6 +16,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 
 <div class="card">
 <h2>減量プラン</h2>
+<div class="note">活動量：低い＝座っている時間が長い ／ やや低い＝軽い運動 ／ 普通＝週1〜3回程度の運動 ／ 高い＝週3〜5回程度の運動 ／ 非常に高い＝ほぼ毎日強い運動</div>
 <div class="form">
 <div class="row">
 <label>性別<select id="sex"><option value="male">男性</option><option value="female">女性</option></select></label>
@@ -26,6 +27,9 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <label>開始体重(kg)<input id="startWeight" type="number" value="75" min="20" max="300" step="0.1"></label>
 </div>
 <div class="row">
+<label>開始日<input id="startDate" type="date"></label>
+<label>目標日<input id="goalDate" type="date"></label>
+</div><div class="row">
 <label>目標体重(kg)<input id="goalInput" type="number" value="67" min="20" max="300" step="0.1"></label>
 <label>活動量<select id="activity"><option value="1.2">低い</option><option value="1.375">やや低い</option><option value="1.55" selected>普通</option><option value="1.725">高い</option><option value="1.9">非常に高い</option></select></label>
 </div>
@@ -66,6 +70,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <h2>体重履歴</h2>
 <ul id="history" class="history"></ul>
 <p id="historyEmpty" class="note">まだ体重記録がありません。</p>
+<p id="scheduleSummary" class="note">開始日と目標日を設定すると予定ペースを表示します。</p>
 </div>
 
 <div class="card">
@@ -121,7 +126,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <script>
-let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55};
+let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
 let records=[];
 const foodData=[
  {id:"chicken",name:"鶏むね肉（皮なし・調理済み）",kcal:165,p:31.0,f:3.6,c:0},
@@ -238,6 +243,8 @@ function loadData(){
  document.getElementById("startWeight").value=plan.startWeight;
  document.getElementById("goalInput").value=plan.goalWeight;
  document.getElementById("activity").value=String(plan.activity);
+ document.getElementById("startDate").value=plan.startDate||today();
+ document.getElementById("goalDate").value=plan.goalDate||today();
  calculate();
  renderHistory();
  renderChart();
@@ -251,7 +258,9 @@ function calculate(){
  const goal=Number(document.getElementById("goalInput").value);
  const activity=Number(document.getElementById("activity").value);
  if(!age||!height||!startWeight||!goal)return;
- plan={sex,age,height,startWeight,goalWeight:goal,activity};
+ const startDate=document.getElementById("startDate").value;
+ const goalDate=document.getElementById("goalDate").value;
+ plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
  try{localStorage.setItem("wellBodyPlan",JSON.stringify(plan));}catch(e){}
  const current=records.length?records[records.length-1].weight:startWeight;
  const bmr=sex==="male"?10*current+6.25*height-5*age+5:10*current+6.25*height-5*age-161;
@@ -262,6 +271,23 @@ function calculate(){
  document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
  document.getElementById("targetCal").textContent=target.toLocaleString();
  updateProgress(current);
+ updateSchedule(current);
+}
+
+function updateSchedule(current){
+ const box=document.getElementById("scheduleSummary");
+ if(!box)return;
+ const start=plan.startDate,goal=plan.goalDate;
+ if(!start||!goal){box.textContent="開始日と目標日を設定すると予定ペースを表示します。";return;}
+ const s=new Date(start+"T00:00:00"),g=new Date(goal+"T00:00:00"),now=new Date();
+ const totalDays=Math.max(1,Math.round((g-s)/86400000));
+ const elapsed=Math.max(0,Math.min(totalDays,Math.round((now-s)/86400000)));
+ const plannedLoss=Math.max(0,plan.startWeight-plan.goalWeight);
+ const plannedToday=plannedLoss*(elapsed/totalDays);
+ const actualLoss=plan.startWeight-current;
+ const diff=actualLoss-plannedToday;
+ const plannedPerWeek=plannedLoss/(totalDays/7);
+ box.textContent="予定ペース：約"+plannedPerWeek.toFixed(2)+" kg/週 ／ 現在の予定差："+(diff>0?"+":"")+diff.toFixed(1)+" kg";
 }
 
 function updateProgress(current){
@@ -348,7 +374,7 @@ function renderHistory(){
 }
 
 function resetDemo(){
- plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55};
+ plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
  records=[];
  try{
   localStorage.removeItem("wellBodyPlan");

@@ -19,5 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build and validate MEXT Food Master
+        run: npm run build:mext
       - name: Run regression tests
         run: npm test

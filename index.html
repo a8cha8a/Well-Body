@@ -70,7 +70,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <h2>体重履歴</h2>
 <ul id="history" class="history"></ul>
 <p id="historyEmpty" class="note">まだ体重記録がありません。</p>
-<p id="scheduleSummary" class="note">開始日と目標日を設定すると予定ペースを表示します。</p>
+<div id="scheduleSummary" class="note">開始日と目標日を設定すると予定ペースを表示します。</div>
 </div>
 
 <div class="card">
@@ -552,13 +552,27 @@ function updateSchedule(current){
   box.textContent="予定ペース：算出不可（目標期間が0日）";
   return;
  }
+ const plannedLoss=plan.startWeight-plan.goalWeight;
+ if(plannedLoss===0){
+  box.textContent="必要減量量：0.0 kg ／ 目標期間："+totalDays+"日 ／ 予定ペース：計算不要 ／ 現在のペース：計算不要 ／ 予定との差：計算不要 ／ ペース評価：計算不要 ／ 次にすること：計算不要";
+  return;
+ }
+ if(plannedLoss<0){
+  box.textContent="必要減量量：計算不可 ／ 目標期間："+totalDays+"日 ／ 予定ペース：計算不可 ／ 現在のペース：計算不可 ／ 予定との差：計算不可 ／ ペース評価：計算不可 ／ 次にすること：計算不可";
+  return;
+ }
  const elapsed=Math.max(0,Math.min(totalDays,Math.round((now-s)/86400000)));
- const plannedLoss=Math.max(0,plan.startWeight-plan.goalWeight);
  const plannedToday=plannedLoss*(elapsed/totalDays);
  const actualLoss=plan.startWeight-current;
  const diff=actualLoss-plannedToday;
  const plannedPerWeek=plannedLoss/(totalDays/7);
- box.textContent="予定ペース：約"+plannedPerWeek.toFixed(2)+" kg/週 ／ 現在の予定差："+(diff>0?"+":"")+diff.toFixed(1)+" kg";
+ const currentPerWeek=elapsed>0?actualLoss/elapsed*7:0;
+ let evaluation;
+ let nextAction="設定した目標ペースを確認してください。";
+ if(plannedPerWeek<0.45)evaluation="一般的な目安より遅いペース";
+ else if(plannedPerWeek<=0.91)evaluation="一般的な減量ペースの目安";
+ else{evaluation="速いペースの設定";nextAction="目標日または目標体重の見直しを推奨";}
+ box.textContent="必要減量量："+plannedLoss.toFixed(1)+" kg ／ 目標期間："+totalDays+"日 ／ 予定ペース："+plannedPerWeek.toFixed(2)+" kg/週 ／ 現在のペース："+currentPerWeek.toFixed(2)+" kg/週 ／ 予定との差："+(diff>0?"+":"")+diff.toFixed(1)+" kg ／ ペース評価："+evaluation+" ／ 次にすること："+nextAction;
 }
 
 function updateProgress(current){

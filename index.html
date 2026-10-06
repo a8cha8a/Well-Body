@@ -150,6 +150,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <p id="message" class="ok">デモデータを読み込みました</p>
 </div>
 
+<script src="calculations.js"></script>
 <script>
 let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
 let records=[];
@@ -438,9 +439,7 @@ function renderMeals(){
  const target=Number(targetText.replace(/,/g,""));
  const targetValid=Number.isFinite(target);
  if(targetValid){
-  const pTarget=Number((target*0.4/4).toFixed(1));
-  const fTarget=Number((target*0.2/9).toFixed(1));
-  const cTarget=Number((target*0.4/4).toFixed(1));
+  const {p:pTarget,f:fTarget,c:cTarget}=WellBodyCalculations.calculatePfcTargets(target);
   const remainKcal=Math.max(0,target-totals.kcal);
   const remainP=Math.max(0,pTarget-totals.p);
   const remainF=Math.max(0,fTarget-totals.f);
@@ -520,17 +519,12 @@ function calculate(){
  plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
  try{localStorage.setItem("wellBodyPlan",JSON.stringify(plan));}catch(e){}
  const current=records.length?records[records.length-1].weight:startWeight;
- const bmr=sex==="male"?10*current+6.25*height-5*age+5:10*current+6.25*height-5*age-161;
- const tdee=bmr*activity;
+ const bmr=WellBodyCalculations.calculateBmr(sex,current,height,age);
+ const tdee=WellBodyCalculations.calculateTdee(bmr,activity);
  const s=new Date(startDate+"T00:00:00"),g=new Date(goalDate+"T00:00:00");
  const totalDays=Math.round((g-s)/86400000);
  const plannedLoss=startWeight-goal;
- let target=null;
- if(plannedLoss===0) target=null;
- else if(plannedLoss<0) target=null;
- else if(totalDays===0) target=null;
- else if(totalDays<0) target=null;
- else { const totalDeficit=plannedLoss*7000; const dailyDeficit=totalDeficit/totalDays; target=Math.round(tdee-dailyDeficit); }
+ const target=WellBodyCalculations.calculateTargetCalorie(tdee,startWeight,goal,totalDays);
  document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
  document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
  document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
@@ -566,11 +560,9 @@ function updateSchedule(current){
   return;
  }
  const elapsed=Math.max(0,Math.round((now-s)/86400000));
- const plannedToday=plannedLoss*(elapsed/totalDays);
- const actualLoss=plan.startWeight-current;
- const diff=actualLoss-plannedToday;
- const plannedPerWeek=plannedLoss/(totalDays/7);
- const currentPerWeek=elapsed>0?actualLoss/elapsed*7:0;
+ const diff=WellBodyCalculations.calculatePlannedDifference(plan.startWeight,plan.goalWeight,current,totalDays,elapsed);
+ const plannedPerWeek=WellBodyCalculations.calculatePlannedPace(plan.startWeight,plan.goalWeight,totalDays);
+ const currentPerWeek=WellBodyCalculations.calculatePace(plan.startWeight,current,elapsed);
  let evaluation;
  let nextAction="設定した目標ペースを確認してください。";
  if(plannedPerWeek<0.45)evaluation="一般的な目安より遅いペース";
@@ -584,10 +576,8 @@ function updateProgress(current){
  const start=plan.startWeight;
  document.getElementById("current").textContent=current.toFixed(1);
  document.getElementById("goal").textContent=goal.toFixed(1);
- document.getElementById("left").textContent=Math.max(0,current-goal).toFixed(1);
- const total=Math.max(.1,start-goal);
- const lost=start-current;
- const percent=Math.max(0,Math.min(100,lost/total*100));
+ document.getElementById("left").textContent=WellBodyCalculations.calculateRemainingWeight(current,goal).toFixed(1);
+ const percent=WellBodyCalculations.calculateProgress(start,current,goal);
  document.getElementById("percent").textContent=Math.round(percent);
  document.getElementById("progress").style.width=percent+"%";
 }
@@ -665,8 +655,7 @@ function renderHistory(){
 function updateDashboard(){
  const current=records.length?records[records.length-1].weight:plan.startWeight;
  const goal=plan.goalWeight;
- const total=Math.max(.1,plan.startWeight-goal);
- const percent=Math.max(0,Math.min(100,(plan.startWeight-current)/total*100));
+ const percent=WellBodyCalculations.calculateProgress(plan.startWeight,current,goal);
  document.getElementById("dashboardWeight").textContent=current.toFixed(1);
  document.getElementById("dashboardGoal").textContent=goal.toFixed(1);
  document.getElementById("dashboardLeft").textContent=Math.max(0,current-goal).toFixed(1);

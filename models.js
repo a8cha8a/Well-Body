@@ -64,7 +64,7 @@ const WellBodyModels = (() => {
       !Array.isArray(value.items);
   }
 
-  function fromLegacyMeal(value, foodMap) {
+  function fromLegacyMeal(value, foodMap, legacyIndex) {
     if (!isLegacyMeal(value)) return null;
     const food = foodMap.get(value.foodId);
     const grams = Number(value.grams);
@@ -88,9 +88,9 @@ const WellBodyModels = (() => {
   function normalizeMeals(values, foodMap) {
     if (!Array.isArray(values)) return [];
     const result = [];
-    values.forEach(value => {
+    values.forEach((value, index) => {
       if (isLegacyMeal(value)) {
-        const meal = fromLegacyMeal(value, foodMap);
+        const meal = fromLegacyMeal(value, foodMap, index);
         if (meal) result.push(meal);
         return;
       }

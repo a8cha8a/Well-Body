@@ -183,7 +183,7 @@ function loadMeals(){
  select.innerHTML="";
  foodData.forEach(f=>{
   const o=document.createElement("option");
-  o.value=f.id;o.textContent=f.name;
+  o.value=f.foodId;o.textContent=f.name;
   select.appendChild(o);
  });
  renderMeals();
@@ -224,7 +224,7 @@ function findFoodMatches(text){
  const s=normalizeVoiceText(text);
  const matches=[];
  for(const food of foodData){
-  const names=[food.name.split("（")[0],...(voiceAliases[food.id]||[])];
+  const names=[food.name.split("（")[0],...(voiceAliases[food.foodId]||[])];
   for(const alias of names){
    let pos=0;
    while(true){
@@ -377,7 +377,7 @@ function renderVoiceItems(){
  list.innerHTML="";
  empty.style.display=voiceItems.length?"none":"block";
  voiceItems.forEach((item,index)=>{
-  const food=foodData.find(f=>f.id===item.foodId);
+  const food=foodData.find(f=>f.foodId===item.foodId);
   const li=document.createElement("li");
   li.innerHTML="<strong>"+(index+1)+".</strong> "+food.name+" "+item.grams+"g";
   list.appendChild(li);
@@ -385,8 +385,8 @@ function renderVoiceItems(){
 }
 
 function queueVoiceItem(food,grams){
- voiceItems.push({foodId:food.id,grams});
- document.getElementById("foodSelect").value=food.id;
+ voiceItems.push({foodId:food.foodId,grams});
+ document.getElementById("foodSelect").value=food.foodId;
  document.getElementById("foodGrams").value=grams;
  renderVoiceItems();
 }

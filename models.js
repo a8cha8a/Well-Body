@@ -70,15 +70,24 @@ const WellBodyModels = (() => {
     const grams = Number(value.grams);
     if (!food || !Number.isFinite(grams) || grams <= 0 || !MEAL_TYPES.includes(value.type)) {
       return {
-        mealId: null,
+        mealId: "legacy-" + legacyIndex,
         date: value.date,
         type: value.type,
-        items: []
+        items: [{
+          foodId: value.foodId,
+          grams,
+          kcal: null,
+          protein: null,
+          fat: null,
+          carbs: null,
+          foodDataVersion: null,
+          nutritionStatus: "unknown"
+        }]
       };
     }
     const item = createMealItem(food, grams);
     return {
-      mealId: null,
+      mealId: "legacy-" + legacyIndex,
       date: value.date,
       type: value.type,
       items: item ? [item] : []

@@ -227,13 +227,7 @@ function loadMeals(){
   const result=WellBodyStorage.create().getMeals();
   if(result.ok && result.value)meals=WellBodyModels.normalizeMeals(result.value,foodMap);
  }catch(e){meals=[]}
- const select=document.getElementById("foodSelect");
- select.innerHTML="";
- foodData.forEach(f=>{
-  const o=document.createElement("option");
-  o.value=f.foodId;o.textContent=f.name;
-  select.appendChild(o);
- });
+ renderFoodOptions();
  renderMeals();
 }
 
@@ -464,7 +458,10 @@ function addMeal(){
   const mealItem=WellBodyModels.createMealItem(food,grams);
   if(mealItem)items.push(mealItem);
  }
- if(!items.length)return;
+ if(!items.length){
+  document.getElementById("foodSearchMessage").textContent="この食品は栄養値が不完全なため記録できません。別の食品を選択してください。";
+  return;
+ }
  const meal=WellBodyModels.createMeal({mealId:createMealId(),date:dateKey(),type,items});
  if(!meal)return;
  meals.push(meal);

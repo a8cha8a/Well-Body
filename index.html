@@ -514,7 +514,15 @@ function updateSchedule(current){
  const start=plan.startDate,goal=plan.goalDate;
  if(!start||!goal){box.textContent="開始日と目標日を設定すると予定ペースを表示します。";return;}
  const s=new Date(start+"T00:00:00"),g=new Date(goal+"T00:00:00"),now=new Date();
- const totalDays=Math.max(1,Math.round((g-s)/86400000));
+ const totalDays=Math.round((g-s)/86400000);
+ if(totalDays<0){
+  box.textContent="入力エラー：目標日は開始日以降に設定してください";
+  return;
+ }
+ if(totalDays===0){
+  box.textContent="予定ペース：算出不可（目標期間が0日）";
+  return;
+ }
  const elapsed=Math.max(0,Math.min(totalDays,Math.round((now-s)/86400000)));
  const plannedLoss=Math.max(0,plan.startWeight-plan.goalWeight);
  const plannedToday=plannedLoss*(elapsed/totalDays);

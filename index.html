@@ -435,7 +435,7 @@ function renderMeals(){
   const typeName={breakfast:"朝食",lunch:"昼食",snack:"間食",dinner:"夕食"}[m.type];
   (m.items||[]).forEach(item=>{
    const food=foodMap.get(item.foodId);
-   if(!food)return;
+   const foodName=food ? food.name : "不明な食品";
    const hasNutrition=[item.kcal,item.protein,item.fat,item.carbs].every(Number.isFinite);
    if(hasNutrition){
     totals.kcal+=item.kcal;
@@ -444,7 +444,7 @@ function renderMeals(){
     totals.c+=item.carbs;
    }
    const li=document.createElement("li");
-   li.innerHTML="<strong>"+typeName+"</strong> "+food.name+" "+item.grams+"g";
+   li.innerHTML="<strong>"+typeName+"</strong> "+foodName+" "+item.grams+"g";
    if(hasNutrition){
     li.innerHTML+="<br><span class='muted'>"+Math.round(item.kcal)+" kcal / P "+item.protein.toFixed(1)+"g / F "+item.fat.toFixed(1)+"g / C "+item.carbs.toFixed(1)+"g</span>";
    }else{

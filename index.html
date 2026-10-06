@@ -151,6 +151,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 </div>
 
 <script src="calculations.js"></script>
+<script src="storage.js"></script>
 <script>
 let plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
 let records=[];
@@ -172,8 +173,8 @@ function dateKey(){
 
 function loadMeals(){
  try{
-  const saved=localStorage.getItem("wellBodyMeals");
-  if(saved)meals=JSON.parse(saved);
+  const result=WellBodyStorage.create().getMeals();
+  if(result.ok && result.value)meals=result.value;
  }catch(e){meals=[]}
  const select=document.getElementById("foodSelect");
  select.innerHTML="";
@@ -403,7 +404,7 @@ function addMeal(){
   if(!food||!grams||grams<=0)return;
   meals.push({date:dateKey(),type,foodId,grams});
  }
- try{localStorage.setItem("wellBodyMeals",JSON.stringify(meals));}catch(e){}
+ WellBodyStorage.create().saveMeals(meals);
  renderMeals();
  renderVoiceItems();
  document.getElementById("foodGrams").value=100;
@@ -486,10 +487,10 @@ function today(){
 
 function loadData(){
  try{
-  const savedPlan=localStorage.getItem("wellBodyPlan");
-  const savedRecords=localStorage.getItem("wellBodyWeightRecords");
-  if(savedPlan) plan=JSON.parse(savedPlan);
-  if(savedRecords) records=JSON.parse(savedRecords);
+  const savedPlan=WellBodyStorage.create().getPlan();
+  const savedRecords=WellBodyStorage.create().getWeightRecords();
+  if(savedPlan.ok && savedPlan.value) plan=savedPlan.value;
+  if(savedRecords.ok && savedRecords.value) records=savedRecords.value;
  }catch(e){}
  document.getElementById("recordDate").value=today();
  document.getElementById("recordWeight").value=(records.length?records[records.length-1].weight:plan.startWeight);
@@ -517,7 +518,7 @@ function calculate(){
  const startDate=document.getElementById("startDate").value;
  const goalDate=document.getElementById("goalDate").value;
  plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
- try{localStorage.setItem("wellBodyPlan",JSON.stringify(plan));}catch(e){}
+ WellBodyStorage.create().savePlan(plan);
  const current=records.length?records[records.length-1].weight:startWeight;
  const bmr=WellBodyCalculations.calculateBmr(sex,current,height,age);
  const tdee=WellBodyCalculations.calculateTdee(bmr,activity);
@@ -592,7 +593,7 @@ function recordWeight(){
  const existing=records.findIndex(r=>r.date===date);
  if(existing>=0)records[existing]={date,weight};else records.push({date,weight});
  records.sort((a,b)=>a.date.localeCompare(b.date));
- try{localStorage.setItem("wellBodyWeightRecords",JSON.stringify(records));}catch(e){}
+ WellBodyStorage.create().saveWeightRecords(records);
  calculate();
  renderHistory();
  renderChart();
@@ -670,12 +671,10 @@ function updateDashboard(){
 function resetDemo(){
  plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
  records=[];
- try{
-  localStorage.removeItem("wellBodyPlan");
-  localStorage.removeItem("wellBodyWeightRecords");
-  localStorage.removeItem("wellBodyMeals");
+ WellBodyStorage.create().clearPlan();
+  WellBodyStorage.create().clearWeightRecords();
+  WellBodyStorage.create().clearMeals();
   meals=[];
- }catch(e){}
  loadData();
  renderChart();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";

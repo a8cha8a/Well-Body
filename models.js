@@ -35,6 +35,7 @@ const WellBodyModels = (() => {
     const weight = Number(grams);
     if (!food || !Number.isFinite(weight) || weight <= 0) return null;
     const snapshot = calculateSnapshot(food, weight);
+    if (!snapshot) return null;
     return {
       foodId: food.foodId,
       grams: weight,

@@ -1,6 +1,15 @@
 const assert = require("node:assert/strict");
 const calc = require("../calculations.js");
 
+const EPSILON = 1e-9;
+
+function assertClose(actual, expected) {
+  assert.ok(
+    Math.abs(actual - expected) < EPSILON,
+    "expected " + expected + ", got " + actual
+  );
+}
+
 // BMR / TDEE
 assert.equal(calc.calculateBmr("male", 75, 170, 36), 1637.5);
 assert.equal(Math.round(calc.calculateTdee(1637.5, 1.55)), 2538);
@@ -42,7 +51,7 @@ assert.equal(calc.calculatePlannedPace(75, 67, 0), null);
 assert.equal(calc.calculatePlannedPace(75, 67, -1), null);
 
 // Pace evaluation boundary values
-assert.equal(calc.calculatePlannedPace(75, 71.48, 56), 0.44);
-assert.equal(calc.calculatePlannedPace(75, 71.4, 56), 0.45);
-assert.equal(calc.calculatePlannedPace(75, 67.72, 56), 0.91);
-assert.equal(calc.calculatePlannedPace(75, 67.64, 56), 0.92);
+assertClose(calc.calculatePlannedPace(75, 71.48, 56), 0.44);
+assertClose(calc.calculatePlannedPace(75, 71.4, 56), 0.45);
+assertClose(calc.calculatePlannedPace(75, 67.72, 56), 0.91);
+assertClose(calc.calculatePlannedPace(75, 67.64, 56), 0.92);

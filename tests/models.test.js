@@ -110,3 +110,16 @@ assert.equal(daily.length, 1);
 assert.equal(daily[0].date, "2026-10-06");
 assert.equal(daily[0].mealCount, 3);
 assert.equal(daily[0].kcal, 71 + 156 + 78);
+
+
+const unknownMeal = WellBodyModels.normalizeMeals(
+  [{date:"2026-10-06",type:"dinner",foodId:"missing-food",grams:100}],
+  foodMap
+)[0];
+assert.equal(unknownMeal.items[0].nutritionStatus, "unknown");
+assert.equal(unknownMeal.items[0].kcal, null);
+assert.equal(unknownMeal.items[0].foodId, "missing-food");
+
+const foodIds = foods.map(food => food.foodId);
+assert.deepEqual(foodIds, ["egg", "rice"]);
+assert.equal(foods.some(food => food.id), false);

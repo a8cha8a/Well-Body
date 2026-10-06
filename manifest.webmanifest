@@ -1,0 +1,10 @@
+{
+  "name": "Well-Body｜ボディメイク・健康管理",
+  "short_name": "Well-Body",
+  "lang": "ja-JP",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#222222",
+  "description": "身体・栄養・活動・進捗を記録・分析する個人用ボディメイク・健康管理ツール"
+}

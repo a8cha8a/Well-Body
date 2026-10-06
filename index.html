@@ -43,7 +43,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 基礎代謝：<strong id="bmr">---</strong> kcal/日<br>
 推定消費カロリー：<strong id="tdee">---</strong> kcal/日<br>
 目標まで：<strong id="remain">---</strong> kg<br>
-1日の目標摂取カロリー：<strong id="targetCal">---</strong> kcal
+1日の推定目標摂取カロリー：<strong id="targetCal">---</strong> kcal
 </div>
 </div>
 
@@ -499,11 +499,19 @@ function calculate(){
  const current=records.length?records[records.length-1].weight:startWeight;
  const bmr=sex==="male"?10*current+6.25*height-5*age+5:10*current+6.25*height-5*age-161;
  const tdee=bmr*activity;
- const target=Math.max(1200,Math.round(tdee-500));
+ const s=new Date(startDate+"T00:00:00"),g=new Date(goalDate+"T00:00:00");
+ const totalDays=Math.round((g-s)/86400000);
+ const plannedLoss=startWeight-goal;
+ let target=null;
+ if(plannedLoss===0) target=null;
+ else if(plannedLoss<0) target=null;
+ else if(totalDays===0) target=null;
+ else if(totalDays<0) target=null;
+ else { const totalDeficit=plannedLoss*7000; const dailyDeficit=totalDeficit/totalDays; target=Math.round(tdee-dailyDeficit); }
  document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
  document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
  document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
- document.getElementById("targetCal").textContent=target.toLocaleString();
+ document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"計算不要":target.toLocaleString();
  updateProgress(current);
  updateSchedule(current);
 }

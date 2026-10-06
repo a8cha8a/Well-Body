@@ -533,6 +533,8 @@ function calculate(){
  document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"計算不要":target.toLocaleString();
  updateProgress(current);
  updateSchedule(current);
+ renderMeals();
+ updateDashboard();
 }
 
 function updateSchedule(current){

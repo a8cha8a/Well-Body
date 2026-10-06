@@ -12,7 +12,7 @@ const WellBodyModels = (() => {
       protein: data.protein == null ? null : Number(data.protein),
       fat: data.fat == null ? null : Number(data.fat),
       carbs: data.carbs == null ? null : Number(data.carbs),
-      nutritionStatus: data.nutritionStatus || "known",
+      ...(data.nutritionStatus ? { nutritionStatus: data.nutritionStatus } : {}),
       source: data.source,
       dataVersion: data.dataVersion
     };

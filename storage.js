@@ -29,6 +29,16 @@ const WellBodyStorage = (() => {
       }
     }
 
+    function remove(key) {
+      if (!storage) return false;
+      try {
+        storage.removeItem(key);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
     return {
       getPlan() {
         return get(KEYS.plan, null);
@@ -47,6 +57,15 @@ const WellBodyStorage = (() => {
       },
       saveMeals(value) {
         return set(KEYS.meals, value);
+      },
+      clearPlan() {
+        return remove(KEYS.plan);
+      },
+      clearWeightRecords() {
+        return remove(KEYS.weightRecords);
+      },
+      clearMeals() {
+        return remove(KEYS.meals);
       }
     };
   }

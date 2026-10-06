@@ -12,6 +12,7 @@ const WellBodyModels = (() => {
       protein: Number(data.protein),
       fat: Number(data.fat),
       carbs: Number(data.carbs),
+      nutritionStatus: data.nutritionStatus || "known",
       source: data.source,
       dataVersion: data.dataVersion
     };
@@ -20,6 +21,7 @@ const WellBodyModels = (() => {
   function calculateSnapshot(food, grams) {
     const weight = Number(grams);
     if (!food || !Number.isFinite(weight) || weight <= 0) return null;
+    if (![food.kcal, food.protein, food.fat, food.carbs].every(Number.isFinite)) return null;
     const ratio = weight / food.referenceWeight;
     return {
       kcal: food.kcal * ratio,

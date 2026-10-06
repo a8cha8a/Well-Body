@@ -431,7 +431,7 @@ function renderMeals(){
  list.innerHTML="";
  document.getElementById("mealEmpty").style.display=todays.length?"none":"block";
  const totals={kcal:0,p:0,f:0,c:0};
- todays.forEach((m)=>{
+ todays.forEach((m,index)=>{
   const typeName={breakfast:"朝食",lunch:"昼食",snack:"間食",dinner:"夕食"}[m.type];
   (m.items||[]).forEach(item=>{
    const food=foodMap.get(item.foodId);
@@ -473,9 +473,206 @@ function renderMeals(){
   document.getElementById("remainingF").textContent=remainF.toFixed(1)+"g";
   document.getElementById("remainingC").textContent=remainC.toFixed(1)+"g";
   document.getElementById("calorieRate").textContent=rate+"%";
+ }else{
+  const status=targetText==="計算不可"?"計算不可":"計算不要";
+  document.getElementById("remainingCalories").textContent=status;
+  document.getElementById("remainingP").textContent=status;
+  document.getElementById("remainingF").textContent=status;
+  document.getElementById("remainingC").textContent=status;
+  document.getElementById("calorieRate").textContent=status;
  }
- const advice=document.getElementById("mealAdvice");
- if(advice)advice.textContent=todays.length?"今日の食事記録を確認できます。":"まず食事を記録してください。";
+ if(todays.length&&targetValid){
+  const rate=Math.min(100,Math.round(totals.kcal/target*100));
+  const remainKcal=Math.max(0,target-totals.kcal);
+  const pTarget=Number((target*0.4/4).toFixed(1));
+  const fTarget=Number((target*0.2/9).toFixed(1));
+  const cTarget=Number((target*0.4/4).toFixed(1));
+  const remainP=Math.max(0,pTarget-totals.p);
+  const remainF=Math.max(0,fTarget-totals.f);
+  const remainC=Math.max(0,cTarget-totals.c);
+  document.getElementById("mealAdvice").textContent="今日の摂取は目標の"+rate+"%。P/F/Cはそれぞれ "+totals.p.toFixed(1)+"g / "+totals.f.toFixed(1)+"g / "+totals.c.toFixed(1)+"gです。";
+  document.getElementById("remainingAdvice").textContent="目標まで、あと "+Math.round(remainKcal)+" kcal / P "+remainP.toFixed(1)+"g / F "+remainF.toFixed(1)+"g / C "+remainC.toFixed(1)+"gです。";
+ }else{
+  document.getElementById("mealAdvice").textContent="食事を記録すると、今日のPFCバランスを表示します。";
+  document.getElementById("remainingAdvice").textContent="今日の食事を記録すると、残りの目標量を表示します。";
+ }
+}
+
+
+
+function today(){
+ const d=new Date();
+ const m=String(d.getMonth()+1).padStart(2,"0");
+ const day=String(d.getDate()).padStart(2,"0");
+ return d.getFullYear()+"-"+m+"-"+day;
+}
+
+function loadData(){
+ try{
+  const savedPlan=WellBodyStorage.create().getPlan();
+  const savedRecords=WellBodyStorage.create().getWeightRecords();
+  if(savedPlan.ok && savedPlan.value) plan=savedPlan.value;
+  if(savedRecords.ok && savedRecords.value) records=savedRecords.value;
+ }catch(e){}
+ document.getElementById("recordDate").value=today();
+ document.getElementById("recordWeight").value=(records.length?records[records.length-1].weight:plan.startWeight);
+ document.getElementById("sex").value=plan.sex;
+ document.getElementById("age").value=plan.age;
+ document.getElementById("height").value=plan.height;
+ document.getElementById("startWeight").value=plan.startWeight;
+ document.getElementById("goalInput").value=plan.goalWeight;
+ document.getElementById("activity").value=String(plan.activity);
+ document.getElementById("startDate").value=plan.startDate||today();
+ document.getElementById("goalDate").value=plan.goalDate||today();
+ calculate();
+ renderHistory();
+ renderChart();
+}
+
+function calculate(){
+ const sex=document.getElementById("sex").value;
+ const age=Number(document.getElementById("age").value);
+ const height=Number(document.getElementById("height").value);
+ const startWeight=Number(document.getElementById("startWeight").value);
+ const goal=Number(document.getElementById("goalInput").value);
+ const activity=Number(document.getElementById("activity").value);
+ if(!age||!height||!startWeight||!goal)return;
+ const startDate=document.getElementById("startDate").value;
+ const goalDate=document.getElementById("goalDate").value;
+ plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
+ WellBodyStorage.create().savePlan(plan);
+ const current=records.length?records[records.length-1].weight:startWeight;
+ const bmr=WellBodyCalculations.calculateBmr(sex,current,height,age);
+ const tdee=WellBodyCalculations.calculateTdee(bmr,activity);
+ const s=new Date(startDate+"T00:00:00"),g=new Date(goalDate+"T00:00:00");
+ const totalDays=Math.round((g-s)/86400000);
+ const plannedLoss=startWeight-goal;
+ const target=WellBodyCalculations.calculateTargetCalorie(tdee,startWeight,goal,totalDays);
+ document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
+ document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
+ document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
+ document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"計算不要":target.toLocaleString();
+ updateProgress(current);
+ updateSchedule(current);
+ renderMeals();
+ updateDashboard();
+}
+
+function updateSchedule(current){
+ const box=document.getElementById("scheduleSummary");
+ if(!box)return;
+ const start=plan.startDate,goal=plan.goalDate;
+ if(!start||!goal){box.textContent="開始日と目標日を設定すると予定ペースを表示します。";return;}
+ const s=new Date(start+"T00:00:00"),g=new Date(goal+"T00:00:00"),now=new Date();
+ const totalDays=Math.round((g-s)/86400000);
+ if(totalDays<0){
+  box.textContent="入力エラー：目標日は開始日以降に設定してください";
+  return;
+ }
+ if(totalDays===0){
+  box.textContent="予定ペース：算出不可（目標期間が0日）";
+  return;
+ }
+ const plannedLoss=plan.startWeight-plan.goalWeight;
+ if(plannedLoss===0){
+  box.textContent="必要減量量：0.0 kg ／ 目標期間："+totalDays+"日 ／ 予定ペース：計算不要 ／ 現在のペース：計算不要 ／ 予定との差：計算不要 ／ ペース評価：計算不要 ／ 次にすること：計算不要";
+  return;
+ }
+ if(plannedLoss<0){
+  box.textContent="必要減量量：計算不可 ／ 目標期間："+totalDays+"日 ／ 予定ペース：計算不可 ／ 現在のペース：計算不可 ／ 予定との差：計算不可 ／ ペース評価：計算不可 ／ 次にすること：計算不可";
+  return;
+ }
+ const elapsed=Math.max(0,Math.round((now-s)/86400000));
+ const diff=WellBodyCalculations.calculatePlannedDifference(plan.startWeight,plan.goalWeight,current,totalDays,elapsed);
+ const plannedPerWeek=WellBodyCalculations.calculatePlannedPace(plan.startWeight,plan.goalWeight,totalDays);
+ const currentPerWeek=WellBodyCalculations.calculatePace(plan.startWeight,current,elapsed);
+ let evaluation;
+ let nextAction="設定した目標ペースを確認してください。";
+ if(plannedPerWeek<0.45)evaluation="一般的な目安より遅いペース";
+ else if(plannedPerWeek<=0.91)evaluation="一般的な減量ペースの目安";
+ else{evaluation="速いペースの設定";nextAction="目標日または目標体重の見直しを推奨";}
+ box.textContent="必要減量量："+plannedLoss.toFixed(1)+" kg ／ 目標期間："+totalDays+"日 ／ 予定ペース："+plannedPerWeek.toFixed(2)+" kg/週 ／ 現在のペース："+currentPerWeek.toFixed(2)+" kg/週 ／ 予定との差："+(diff>0?"+":"")+diff.toFixed(1)+" kg ／ ペース評価："+evaluation+" ／ 次にすること："+nextAction;
+}
+
+function updateProgress(current){
+ const goal=plan.goalWeight;
+ const start=plan.startWeight;
+ document.getElementById("current").textContent=current.toFixed(1);
+ document.getElementById("goal").textContent=goal.toFixed(1);
+ document.getElementById("left").textContent=WellBodyCalculations.calculateRemainingWeight(current,goal).toFixed(1);
+ const percent=WellBodyCalculations.calculateProgress(start,current,goal);
+ document.getElementById("percent").textContent=Math.round(percent);
+ document.getElementById("progress").style.width=percent+"%";
+}
+
+function recordWeight(){
+ const date=document.getElementById("recordDate").value;
+ const weight=Number(document.getElementById("recordWeight").value);
+ if(!date||!weight){
+  document.getElementById("recordMessage").textContent="日付と体重を入力してください。";
+  return;
+ }
+ const existing=records.findIndex(r=>r.date===date);
+ if(existing>=0)records[existing]={date,weight};else records.push({date,weight});
+ records.sort((a,b)=>a.date.localeCompare(b.date));
+ WellBodyStorage.create().saveWeightRecords(records);
+ calculate();
+ renderHistory();
+ renderChart();
+ document.getElementById("recordMessage").textContent=date+"の体重を"+weight.toFixed(1)+"kgで記録しました。";
+}
+
+function renderChart(){
+ const canvas=document.getElementById("weightChart");
+ const ctx=canvas.getContext("2d");
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+ const data=[...records].sort((a,b)=>a.date.localeCompare(b.date));
+ if(data.length<2){
+  ctx.fillStyle="#888";ctx.font="14px -apple-system,BlinkMacSystemFont,sans-serif";ctx.textAlign="center";
+  ctx.fillText("体重を2件以上記録するとグラフが表示されます",w/2,h/2);
+  document.getElementById("trendSummary").textContent="体重を2件以上記録すると推移グラフを表示します。";
+  return;
+ }
+ const pad={l:42,r:14,t:18,b:34};
+ const vals=data.map(d=>Number(d.weight));
+ let min=Math.min(...vals),max=Math.max(...vals);
+ const range=Math.max(1,max-min);
+ min-=range*0.15;max+=range*0.15;
+ const x=i=>pad.l+(w-pad.l-pad.r)*(i/(data.length-1));
+ const y=v=>pad.t+(h-pad.t-pad.b)*(1-(v-min)/(max-min));
+ ctx.strokeStyle="#ddd";ctx.lineWidth=1;
+ for(let i=0;i<4;i++){
+  const yy=pad.t+(h-pad.t-pad.b)*i/3;
+  ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+ }
+ ctx.fillStyle="#666";ctx.font="12px -apple-system,BlinkMacSystemFont,sans-serif";ctx.textAlign="right";
+ for(let i=0;i<4;i++){
+  const v=max-(max-min)*i/3;
+  const yy=pad.t+(h-pad.t-pad.b)*i/3;
+  ctx.fillText(v.toFixed(1)+"kg",pad.l-6,yy+4);
+ }
+ ctx.strokeStyle="#222";ctx.lineWidth=2;ctx.beginPath();
+ data.forEach((d,i)=>{const xx=x(i),yy=y(Number(d.weight));if(i===0)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy);});ctx.stroke();
+ ctx.fillStyle="#222";
+ data.forEach((d,i)=>{ctx.beginPath();ctx.arc(x(i),y(Number(d.weight)),4,0,Math.PI*2);ctx.fill();});
+ ctx.fillStyle="#666";ctx.textAlign="center";
+ ctx.fillText(data[0].date.slice(5),x(0),h-10);
+ ctx.fillText(data[data.length-1].date.slice(5),x(data.length-1),h-10);
+ const first=Number(data[0].weight),last=Number(data[data.length-1].weight),diff=last-first;
+ document.getElementById("trendSummary").textContent="記録期間："+data[0].date+"〜"+data[data.length-1].date+" ／ 変化："+(diff>0?"+":"")+diff.toFixed(1)+" kg";
+}
+
+function renderHistory(){
+ const list=document.getElementById("history");
+ list.innerHTML="";
+ const sorted=[...records].sort((a,b)=>b.date.localeCompare(a.date));
+ document.getElementById("historyEmpty").style.display=sorted.length?"none":"block";
+ sorted.forEach(r=>{
+  const li=document.createElement("li");
+  li.innerHTML="<span>"+r.date+"</span><strong>"+Number(r.weight).toFixed(1)+" kg</strong>";
+  list.appendChild(li);
+ });
 }
 
 function updateDashboard(){

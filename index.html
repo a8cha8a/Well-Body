@@ -312,7 +312,7 @@ function startVoiceRecognition(){
   }else{
    const hit=findFoodFromVoice(spoken);
    const grams=parseVoiceAmount(spoken);
-   if(hit)document.getElementById("foodSelect").value=hit.id;
+   if(hit)document.getElementById("foodSelect").value=hit.foodId;
    if(grams)document.getElementById("foodGrams").value=grams;
    document.getElementById("voiceMessage").textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
   }

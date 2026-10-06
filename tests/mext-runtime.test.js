@@ -8,7 +8,7 @@ const models=require("../models.js");
 test("MEXT runtime wiring exists",()=>{
  assert.ok(index.includes('fetch("./data/mext/food-master.json"'));
  assert.ok(index.includes("MEXT食品マスター"));
- assert.ok(index.includes("id="foodSearch""));
+ assert.ok(index.includes('id="foodSearch"'));
 });
 
 test("incomplete nutrient data cannot become an official meal snapshot",()=>{

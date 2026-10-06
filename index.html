@@ -561,7 +561,7 @@ function updateSchedule(current){
   box.textContent="必要減量量：計算不可 ／ 目標期間："+totalDays+"日 ／ 予定ペース：計算不可 ／ 現在のペース：計算不可 ／ 予定との差：計算不可 ／ ペース評価：計算不可 ／ 次にすること：計算不可";
   return;
  }
- const elapsed=Math.max(0,Math.min(totalDays,Math.round((now-s)/86400000)));
+ const elapsed=Math.max(0,Math.round((now-s)/86400000));
  const plannedToday=plannedLoss*(elapsed/totalDays);
  const actualLoss=plan.startWeight-current;
  const diff=actualLoss-plannedToday;

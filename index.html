@@ -456,6 +456,14 @@ function renderMeals(){
   document.getElementById("calorieRate").textContent=status;
  }
  if(todays.length&&targetValid){
+  const rate=Math.min(100,Math.round(totals.kcal/target*100));
+  const remainKcal=Math.max(0,target-totals.kcal);
+  const pTarget=Number((target*0.4/4).toFixed(1));
+  const fTarget=Number((target*0.2/9).toFixed(1));
+  const cTarget=Number((target*0.4/4).toFixed(1));
+  const remainP=Math.max(0,pTarget-totals.p);
+  const remainF=Math.max(0,fTarget-totals.f);
+  const remainC=Math.max(0,cTarget-totals.c);
   document.getElementById("mealAdvice").textContent="今日の摂取は目標の"+rate+"%。P/F/Cはそれぞれ "+totals.p.toFixed(1)+"g / "+totals.f.toFixed(1)+"g / "+totals.c.toFixed(1)+"gです。";
   document.getElementById("remainingAdvice").textContent="目標まで、あと "+Math.round(remainKcal)+" kcal / P "+remainP.toFixed(1)+"g / F "+remainF.toFixed(1)+"g / C "+remainC.toFixed(1)+"gです。";
  }else{

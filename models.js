@@ -21,7 +21,9 @@ const WellBodyModels = (() => {
   function createCustomDish(data) {
     if (!data || typeof data.name !== "string" || !data.name.trim()) return null;
     const referenceWeight = Number(data.referenceWeight);
-    const nutrition = [data.kcal, data.protein, data.fat, data.carbs].map(Number);
+    const rawNutrition = [data.kcal, data.protein, data.fat, data.carbs];
+    if (rawNutrition.some(v => v === null || v === undefined || v === "")) return null;
+    const nutrition = rawNutrition.map(Number);
     if (!Number.isFinite(referenceWeight) || referenceWeight <= 0 || !nutrition.every(v => Number.isFinite(v) && v >= 0)) return null;
     return {
       dishId: data.dishId || null,

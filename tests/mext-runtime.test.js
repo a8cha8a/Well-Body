@@ -81,3 +81,13 @@ test("voice selection refreshes selected food confirmation",()=>{
  assert.ok(index.includes("if(hit){document.getElementById(\"foodSelect\").value=hit.foodId;updateSelectedFoodMessage();}"));
  assert.ok(index.includes('document.getElementById("foodSelect").value=food.foodId;\n updateSelectedFoodMessage();'));
 });
+
+
+test("meal input feedback distinguishes errors and success visually",()=>{
+ assert.ok(index.includes('class="feedback" role="status" aria-live="polite"'));
+ assert.ok(index.includes('.feedback.error{display:block'));
+ assert.ok(index.includes('.feedback.success{display:block'));
+ assert.ok(index.includes('input.input-error'));
+ assert.ok(index.includes('setMealInputFeedback("量は1g以上で入力してください。","error")'));
+ assert.ok(index.includes('setMealInputFeedback("食事を追加しました。今日の食事・PFCに反映されています。","success")'));
+});

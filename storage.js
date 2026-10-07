@@ -2,7 +2,8 @@ const WellBodyStorage = (() => {
   const KEYS = {
     plan: "wellBodyPlan",
     weightRecords: "wellBodyWeightRecords",
-    meals: "wellBodyMeals"
+    meals: "wellBodyMeals",
+    customDishes: "wellBodyCustomDishes"
   };
 
   function create(backend) {
@@ -58,6 +59,12 @@ const WellBodyStorage = (() => {
       saveMeals(value) {
         return set(KEYS.meals, value);
       },
+      getCustomDishes() {
+        return get(KEYS.customDishes, []);
+      },
+      saveCustomDishes(value) {
+        return set(KEYS.customDishes, value);
+      },
       clearPlan() {
         return remove(KEYS.plan);
       },
@@ -66,6 +73,9 @@ const WellBodyStorage = (() => {
       },
       clearMeals() {
         return remove(KEYS.meals);
+      },
+      clearCustomDishes() {
+        return remove(KEYS.customDishes);
       }
     };
   }

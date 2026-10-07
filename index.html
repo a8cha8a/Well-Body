@@ -318,15 +318,12 @@ function findFoodMatches(text){
 function parseVoiceItems(text){
  const s=normalizeVoiceText(text);
  const foods=findFoodMatches(s);
- const items=[];
- for(let i=0;i<foods.length;i++){
-  const current=foods[i];
+ return foods.map((current,i)=>{
   const nextStart=i+1<foods.length?foods[i+1].start:s.length;
   const segment=s.slice(current.end,nextStart);
   const grams=parseVoiceAmount(segment);
-  if(grams&&grams>0)items.push({food:current.food,grams});
- }
- return items;
+  return {food:current.food,grams:grams&&grams>0?grams:null};
+ });
 }
 
 function findFoodFromVoice(text){
@@ -370,9 +367,19 @@ function analyzeNaturalMealText(){
  if(mealType)document.getElementById("mealType").value=mealType;
  const items=parseVoiceItems(spoken);
  if(items.length){
-  voiceItems=[];
-  items.forEach(item=>queueVoiceItem(item.food,item.grams));
-  if(message)message.textContent="入力内容から"+items.length+"件を見つけました。内容を確認してから記録してください。";
+  const completeItems=items.filter(item=>item.grams);
+  const incompleteItems=items.filter(item=>!item.grams);
+  if(completeItems.length){
+   voiceItems=[];
+   completeItems.forEach(item=>queueVoiceItem(item.food,item.grams));
+  }
+  if(incompleteItems.length){
+   const item=incompleteItems[0];
+   document.getElementById("foodSelect").value=item.food.foodId;
+   updateSelectedFoodMessage();
+   document.getElementById("foodGrams").value="";
+   if(message)message.textContent="食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。";
+  }else if(message)message.textContent="入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。";
   return;
  }
  const customHits=findCustomDishMatches(spoken);

@@ -123,3 +123,24 @@ assert.equal(unknownMeal.items[0].foodId, "missing-food");
 const foodIds = foods.map(food => food.foodId);
 assert.deepEqual(foodIds, ["egg", "rice"]);
 assert.equal(foods.some(food => food.id), false);
+
+
+// Custom dishes are validated separately, then adapted to the existing food snapshot path.
+const customDish = WellBodyModels.createCustomDish({
+  dishId:"oyakodon", name:" 親子丼 ", aliases:["親子どん"],
+  referenceWeight:300, kcal:520, protein:24, fat:14, carbs:72,
+  source:"user", confidence:"confirmed"
+});
+assert.equal(customDish.name, "親子丼");
+assert.equal(customDish.referenceWeight, 300);
+const customFood = WellBodyModels.customDishToFood(customDish);
+assert.equal(customFood.foodId, "custom:oyakodon");
+assert.equal(customFood.source, "custom-dish:user");
+const customItem = WellBodyModels.createMealItem(customFood, 150);
+assert.equal(customItem.kcal, 260);
+assert.equal(customItem.protein, 12);
+
+// Invalid or incomplete nutrition is never silently accepted.
+assert.equal(WellBodyModels.createCustomDish({name:"不明料理",referenceWeight:100,kcal:null,protein:10,fat:5,carbs:20}), null);
+assert.equal(WellBodyModels.createCustomDish({name:"不明料理",referenceWeight:0,kcal:100,protein:10,fat:5,carbs:20}), null);
+assert.equal(WellBodyModels.createCustomDish({name:"",referenceWeight:100,kcal:100,protein:10,fat:5,carbs:20}), null);

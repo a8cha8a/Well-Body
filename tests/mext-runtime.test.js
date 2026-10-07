@@ -59,3 +59,11 @@ test("daily meal totals aggregate fat into the displayed f total",()=>{
  assert.ok(index.includes("totals.c+=item.carbs;"));
  assert.equal(index.includes("totals.fat+=item.fat;"),false);
 });
+
+
+test("meal selection UX keeps MEXT source-of-truth visible",()=>{
+ assert.ok(index.includes('id="selectedFoodMessage"'));
+ assert.ok(index.includes('"選択中："+food.name+" ／ "+food.referenceWeight+"g基準"'));
+ assert.ok(index.includes("食品・栄養値はMEXT食品マスターを基準にしています。"));
+ assert.equal(index.includes("※現在は動作確認用の食品データです。後の工程で食品データを拡張します。"),false);
+});

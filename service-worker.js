@@ -1,11 +1,12 @@
-const CACHE_NAME = "well-body-app-v1";
+const CACHE_NAME = "well-body-app-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./calculations.js",
   "./storage.js",
   "./models.js",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./data/mext/food-master.json"
 ];
 
 self.addEventListener("install", event => {

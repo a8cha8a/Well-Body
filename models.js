@@ -18,6 +18,43 @@ const WellBodyModels = (() => {
     };
   }
 
+  function createCustomDish(data) {
+    if (!data || typeof data.name !== "string" || !data.name.trim()) return null;
+    const referenceWeight = Number(data.referenceWeight);
+    const nutrition = [data.kcal, data.protein, data.fat, data.carbs].map(Number);
+    if (!Number.isFinite(referenceWeight) || referenceWeight <= 0 || !nutrition.every(v => Number.isFinite(v) && v >= 0)) return null;
+    return {
+      dishId: data.dishId || null,
+      name: data.name.trim(),
+      aliases: Array.isArray(data.aliases) ? data.aliases.map(v => String(v).trim()).filter(Boolean) : [],
+      referenceWeight,
+      kcal: nutrition[0],
+      protein: nutrition[1],
+      fat: nutrition[2],
+      carbs: nutrition[3],
+      source: data.source || "user",
+      confidence: data.confidence || "confirmed",
+      ...(data.sourceUrl ? { sourceUrl: String(data.sourceUrl) } : {})
+    };
+  }
+
+  function customDishToFood(dish) {
+    if (!dish || !dish.dishId) return null;
+    return createFood({
+      foodId: "custom:" + dish.dishId,
+      name: dish.name,
+      category: "custom-dish",
+      state: "prepared",
+      referenceWeight: dish.referenceWeight,
+      kcal: dish.kcal,
+      protein: dish.protein,
+      fat: dish.fat,
+      carbs: dish.carbs,
+      source: "custom-dish:" + dish.source,
+      dataVersion: "custom-1"
+    });
+  }
+
   function calculateSnapshot(food, grams) {
     const weight = Number(grams);
     if (!food || !Number.isFinite(weight) || weight <= 0) return null;
@@ -147,6 +184,8 @@ const WellBodyModels = (() => {
   return {
     MEAL_TYPES,
     createFood,
+    createCustomDish,
+    customDishToFood,
     calculateSnapshot,
     createMealItem,
     createMeal,

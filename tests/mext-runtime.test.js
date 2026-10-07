@@ -104,3 +104,12 @@ test("natural meal input uses iPhone dictation without browser speech recognitio
  assert.equal(index.includes("rec.start()"),false);
 });
 
+
+
+test("natural meal input checks custom dishes and never invents 100g when amount is missing",()=>{
+ assert.ok(index.includes("function loadCustomDishes()"));
+ assert.ok(index.includes("function findCustomDishMatches(text)"));
+ assert.ok(index.includes("WellBodyModels.customDishToFood(dish)"));
+ assert.ok(index.includes('document.getElementById("foodGrams").value=grams||"";'));
+ assert.ok(index.includes("量が分からないため、量を入力してから記録してください。"));
+});

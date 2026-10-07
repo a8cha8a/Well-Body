@@ -93,10 +93,9 @@ test("meal input feedback distinguishes errors and success visually",()=>{
 });
 
 
-test("voice recognition does not auto-restart on iPhone",()=>{
- assert.ok(index.includes("if(!voiceListening||activeRecognition)return;"));
- assert.ok(index.includes('voiceListening=false;\n  setVoiceUI(false,"音声入力を終了しました。続けて入力する場合は、もう一度「音声入力」をタップしてください。");'));
- assert.equal(index.includes("setTimeout(()=>startVoiceRecognition(),150)"),false);
- assert.equal(index.includes("setTimeout(()=>startVoiceRecognition(),250)"),false);
- assert.ok(index.includes("マイクを起動しています… 起動するまで話さずにお待ちください。"));
+test("unstable in-app speech recognition is disabled",()=>{
+ assert.ok(index.includes("iPhone Safariで安定動作しないため、アプリ内音声認識は現在停止しています。キーボードの音声入力をご利用ください。"));
+ assert.equal(index.includes("new SpeechRecognition()"),false);
+ assert.equal(index.includes("rec.start()"),false);
 });
+

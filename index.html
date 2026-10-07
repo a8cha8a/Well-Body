@@ -291,6 +291,17 @@ function parseVoiceAmount(text){
  return null;
 }
 
+function parseNaturalQuantity(text){
+ const grams=parseVoiceAmount(text);
+ if(grams)return {kind:"grams",grams};
+ const s=normalizeVoiceText(text);
+ const m=s.match(/(\d+(?:\.\d+)?)\s*(個|杯|枚|本|パック|袋|皿|人前)/);
+ if(m)return {kind:"serving",value:Number(m[1]),unit:m[2],grams:null};
+ if(/半分|半量/.test(s))return {kind:"relative",value:0.5,unit:"portion",grams:null};
+ if(/大盛り|少なめ|多め/.test(s))return {kind:"relative",label:s.match(/大盛り|少なめ|多め/)[0],grams:null};
+ return {kind:"unknown",grams:null};
+}
+
 function findFoodMatches(text){
  const s=normalizeVoiceText(text);
  const matches=[];
@@ -321,8 +332,8 @@ function parseVoiceItems(text){
  return foods.map((current,i)=>{
   const nextStart=i+1<foods.length?foods[i+1].start:s.length;
   const segment=s.slice(current.end,nextStart);
-  const grams=parseVoiceAmount(segment);
-  return {food:current.food,grams:grams&&grams>0?grams:null};
+  const quantity=parseNaturalQuantity(segment);
+  return {food:current.food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null,quantity};
  });
 }
 
@@ -378,7 +389,7 @@ function analyzeNaturalMealText(){
    document.getElementById("foodSelect").value=item.food.foodId;
    updateSelectedFoodMessage();
    document.getElementById("foodGrams").value="";
-   if(message)message.textContent="食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。";
+   if(message)message.textContent=item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。量を確認してください。":"食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。";
   }else if(message)message.textContent="入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。";
   return;
  }

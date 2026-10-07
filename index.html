@@ -208,17 +208,6 @@ async function loadFoodMaster(){
  }
  renderFoodOptions();
 }
-function foodOptionLabel(food){
- const raw=String(food?.name||"").trim();
- if(food?.source!=="MEXT")return raw;
- const cleaned=raw
-  .replace(/^\s*[＜<][^＞>]+[＞>]\s*/,"")
-  .replace(/^\s*.*?[［\[][^］\]]+[］\]]\s*/,"")
-  .replace(/^\s*[（(][^）)]+[）)]\s*/,"")
-  .replace(/\s+/g," ")
-  .trim();
- return cleaned||raw;
-}
 function renderFoodOptions(){
  const select=document.getElementById("foodSelect");
  const query=normalizeVoiceText(document.getElementById("foodSearch")?.value||"").toLowerCase();
@@ -227,8 +216,7 @@ function renderFoodOptions(){
  matches.forEach(f=>{
   const o=document.createElement("option");
   o.value=f.foodId;
-  o.textContent=foodOptionLabel(f)+(f.nutritionStatus&&f.nutritionStatus!=="known"?"（栄養値一部未収載）":"");
-  o.title=f.name;
+  o.textContent=f.name+(f.nutritionStatus&&f.nutritionStatus!=="known"?"（栄養値一部未収載）":"");
   select.appendChild(o);
  });
  if(!matches.length){

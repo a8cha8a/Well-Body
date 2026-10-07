@@ -213,6 +213,7 @@ function foodOptionLabel(food){
  if(food?.source!=="MEXT")return raw;
  const cleaned=raw
   .replace(/^\s*[＜<][^＞>]+[＞>]\s*/,"")
+  .replace(/^\s*.*?[［\[][^］\]]+[］\]]\s*/,"")
   .replace(/^\s*[（(][^）)]+[）)]\s*/,"")
   .replace(/\s+/g," ")
   .trim();

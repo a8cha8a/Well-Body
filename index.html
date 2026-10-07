@@ -175,6 +175,7 @@ const demoFoodData=[
 ];
 let foodData=[...demoFoodData];
 let meals=[];
+let customDishes=[];
 const foodMap=new Map(foodData.map(food=>[food.foodId,food]));
 let activeRecognition=null;
 
@@ -239,6 +240,17 @@ function renderFoodOptions(){
   document.getElementById("foodSearchMessage").textContent=matches.length+"件の候補が見つかりました。";
  }
 }
+function loadCustomDishes(){
+ try{
+  const result=WellBodyStorage.create().getCustomDishes();
+  customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
+ }catch(e){customDishes=[]}
+}
+function findCustomDishMatches(text){
+ const s=normalizeVoiceText(text).toLowerCase();
+ return customDishes.filter(dish=>[dish.name,...dish.aliases].some(name=>s.includes(String(name).toLowerCase())));
+}
+
 function loadMeals(){
  try{
   const result=WellBodyStorage.create().getMeals();
@@ -363,13 +375,28 @@ function analyzeNaturalMealText(){
   if(message)message.textContent="入力内容から"+items.length+"件を見つけました。内容を確認してから記録してください。";
   return;
  }
- const hit=findFoodFromVoice(spoken);
+ const customHits=findCustomDishMatches(spoken);
  const grams=parseVoiceAmount(spoken);
+ if(customHits.length){
+  const dish=customHits[0];
+  const customFood=WellBodyModels.customDishToFood(dish);
+  if(customFood){
+   foodMap.set(customFood.foodId,customFood);
+   if(!foodData.some(food=>food.foodId===customFood.foodId))foodData.push(customFood);
+   renderFoodOptions();
+   document.getElementById("foodSelect").value=customFood.foodId;
+   updateSelectedFoodMessage();
+   document.getElementById("foodGrams").value=grams||"";
+   if(message)message.textContent=grams?"マイ料理を見つけました。内容を確認してから記録してください。":"マイ料理を見つけました。量が分からないため、量を入力してから記録してください。";
+   return;
+  }
+ }
+ const hit=findFoodFromVoice(spoken);
  if(hit){
   document.getElementById("foodSelect").value=hit.foodId;
   updateSelectedFoodMessage();
-  if(grams)document.getElementById("foodGrams").value=grams;
-  if(message)message.textContent="食品候補を見つけました。量を確認してから記録してください。";
+  document.getElementById("foodGrams").value=grams||"";
+  if(message)message.textContent=grams?"食品候補を見つけました。量を確認してから記録してください。":"食品候補を見つけました。量が分からないため、量を入力してから記録してください。";
   return;
  }
  if(message)message.textContent="登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。";
@@ -745,6 +772,7 @@ function resetDemo(){
 loadData();
 document.getElementById("foodSearch").addEventListener("input",renderFoodOptions);
 document.getElementById("foodSelect").addEventListener("change",updateSelectedFoodMessage);
+loadCustomDishes();
 loadFoodMaster().then(()=>loadMeals());
 renderVoiceItems();
 </script>

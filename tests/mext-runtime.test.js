@@ -91,3 +91,12 @@ test("meal input feedback distinguishes errors and success visually",()=>{
  assert.ok(index.includes('setMealInputFeedback("量は1g以上で入力してください。","error")'));
  assert.ok(index.includes('setMealInputFeedback("食事を追加しました。今日の食事・PFCに反映されています。","success")'));
 });
+
+
+test("voice recognition does not auto-restart on iPhone",()=>{
+ assert.ok(index.includes("if(!voiceListening||activeRecognition)return;"));
+ assert.ok(index.includes('voiceListening=false;\n  setVoiceUI(false,"音声入力を終了しました。続けて入力する場合は、もう一度「音声入力」をタップしてください。");'));
+ assert.equal(index.includes("setTimeout(()=>startVoiceRecognition(),150)"),false);
+ assert.equal(index.includes("setTimeout(()=>startVoiceRecognition(),250)"),false);
+ assert.ok(index.includes("マイクを起動しています… 起動するまで話さずにお待ちください。"));
+});

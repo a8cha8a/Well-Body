@@ -341,89 +341,12 @@ function stopVoice(){
 }
 
 function startVoiceRecognition(){
- if(!voiceListening||activeRecognition)return;
- const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SpeechRecognition){
-  voiceListening=false;
-  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
-  return;
- }
- const rec=new SpeechRecognition();
- activeRecognition=rec;
- rec.lang="ja-JP";
- rec.continuous=false;
- rec.interimResults=false;
- rec.maxAlternatives=1;
-
- rec.onstart=()=>{
-  if(voiceListening)setVoiceUI(true,"音声入力中… 「鶏むね肉150グラム」のように話してください。終了するときはボタンをタップしてください。");
- };
-
- rec.onresult=e=>{
-  if(!voiceListening)return;
-  const spoken=normalizeVoiceText(e.results[e.resultIndex][0].transcript);
-  if(!spoken)return;
-  document.getElementById("voiceText").value=spoken;
-  const items=parseVoiceItems(spoken);
-  if(items.length){
-   items.forEach(item=>queueVoiceItem(item.food,item.grams));
-   document.getElementById("voiceMessage").textContent="認識結果："+spoken+" ／ "+items.length+"件を追加しました。続けて話せます。";
-  }else{
-   const hit=findFoodFromVoice(spoken);
-   const grams=parseVoiceAmount(spoken);
-   if(hit){document.getElementById("foodSelect").value=hit.foodId;updateSelectedFoodMessage();}
-   if(grams)document.getElementById("foodGrams").value=grams;
-   document.getElementById("voiceMessage").textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
-  }
- };
-
- rec.onerror=e=>{
-  const err=e&&e.error?e.error:"unknown";
-  if(!voiceListening)return;
-  if(err==="no-speech"){
-   voiceListening=false;
-   activeRecognition=null;
-   setVoiceUI(false,"音声が聞き取れませんでした。もう一度「音声入力」をタップして話してください。");
-   return;
-  }
-  voiceListening=false;
-  activeRecognition=null;
-  const message=err==="not-allowed"||err==="service-not-allowed"
-   ?"マイクまたは音声認識が許可されていません。Safariのマイク許可を確認してください。"
-   :"音声入力エラー："+err+"。もう一度お試しください。";
-  setVoiceUI(false,message);
- };
-
- rec.onend=()=>{
-  activeRecognition=null;
-  if(!voiceListening)return;
-  voiceListening=false;
-  setVoiceUI(false,"音声入力を終了しました。続けて入力する場合は、もう一度「音声入力」をタップしてください。");
- };
-
- try{
-  rec.start();
- }catch(e){
-  activeRecognition=null;
-  if(voiceListening){
-   voiceListening=false;
-   setVoiceUI(false,"音声入力を開始できませんでした。Safariのマイク許可を確認してください。");
-  }
- }
+ voiceListening=false;
+ activeRecognition=null;
+ setVoiceUI(false,"iPhone Safariで安定動作しないため、アプリ内音声認識は現在停止しています。キーボードの音声入力をご利用ください。");
 }
 
 function toggleVoice(){
- const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SpeechRecognition){
-  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
-  return;
- }
- if(voiceListening){
-  stopVoice();
-  return;
- }
- voiceListening=true;
- setVoiceUI(true,"マイクを起動しています… 起動するまで話さずにお待ちください。");
  startVoiceRecognition();
 }
 

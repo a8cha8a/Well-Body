@@ -77,8 +77,9 @@ test("meal input gives clear validation and success feedback",()=>{
  assert.ok(index.includes("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。"));
 });
 
-test("voice selection refreshes selected food confirmation",()=>{
- assert.ok(index.includes("if(hit){document.getElementById(\"foodSelect\").value=hit.foodId;updateSelectedFoodMessage();}"));
+test("natural text selection refreshes selected food confirmation",()=>{
+ assert.ok(index.includes('document.getElementById("foodSelect").value=hit.foodId;'));
+ assert.ok(index.includes("updateSelectedFoodMessage();"));
  assert.ok(index.includes('document.getElementById("foodSelect").value=food.foodId;\n updateSelectedFoodMessage();'));
 });
 

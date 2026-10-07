@@ -341,7 +341,7 @@ function stopVoice(){
 }
 
 function startVoiceRecognition(){
- if(!voiceListening)return;
+ if(!voiceListening||activeRecognition)return;
  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SpeechRecognition){
   voiceListening=false;
@@ -381,9 +381,9 @@ function startVoiceRecognition(){
   const err=e&&e.error?e.error:"unknown";
   if(!voiceListening)return;
   if(err==="no-speech"){
-   setVoiceUI(true,"音声が聞き取れませんでした。もう一度話してください。終了するにはボタンをタップしてください。");
+   voiceListening=false;
    activeRecognition=null;
-   setTimeout(()=>startVoiceRecognition(),250);
+   setVoiceUI(false,"音声が聞き取れませんでした。もう一度「音声入力」をタップして話してください。");
    return;
   }
   voiceListening=false;
@@ -397,8 +397,8 @@ function startVoiceRecognition(){
  rec.onend=()=>{
   activeRecognition=null;
   if(!voiceListening)return;
-  setVoiceUI(true,"次の食品を話してください。終了するには「音声入力を終了」をタップしてください。");
-  setTimeout(()=>startVoiceRecognition(),150);
+  voiceListening=false;
+  setVoiceUI(false,"音声入力を終了しました。続けて入力する場合は、もう一度「音声入力」をタップしてください。");
  };
 
  try{
@@ -423,7 +423,7 @@ function toggleVoice(){
   return;
  }
  voiceListening=true;
- setVoiceUI(true,"音声入力を開始しています…");
+ setVoiceUI(true,"マイクを起動しています… 起動するまで話さずにお待ちください。");
  startVoiceRecognition();
 }
 

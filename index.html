@@ -116,7 +116,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <p id="voiceItemsEmpty" class="note">音声で複数の食品を続けて話すと、ここに順番に追加されます。</p>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
-<label>食品検索<input id="foodSearch" type="search" placeholder="食品名で検索（例：鶏むね、ご飯、豆腐）" autocomplete="off"></label>
+<label>食品検索<input id="foodSearch" type="search" placeholder="食品名で検索（例：鶏むね、ご飯、豆腐）" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></label>
 <label>食品<select id="foodSelect"></select></label>
 <p id="foodSearchMessage" class="muted">MEXT食品マスターを読み込み中…</p>
 <div class="row">
@@ -442,8 +442,6 @@ function createMealId(){
 }
 
 function addMeal(){
- const search=document.getElementById("foodSearch");
- if(search&&search.value)renderFoodOptions();
  const type=document.getElementById("mealType").value;
  const rawItems=voiceItems.length?[...voiceItems]:null;
  const items=[];

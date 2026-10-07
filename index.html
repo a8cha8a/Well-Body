@@ -111,13 +111,13 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 
 <div class="card">
 <h2>食事を記録</h2>
+<label>話し言葉で食事入力<textarea id="voiceText" rows="2" placeholder="例：昼食は親子丼とサラダだった" autocomplete="off"></textarea></label>
 <div class="row">
-<label>音声入力<input id="voiceText" type="text" placeholder="例：鶏むね肉 150g"></label>
-<div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="toggleVoice()">🎤 音声入力</button></div>
+<div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="analyzeNaturalMealText()">入力内容を解析</button></div>
 </div>
-<p id="voiceMessage" class="muted">対応ブラウザでは音声入力結果から食品と量を自動設定します。</p>
+<p id="voiceMessage" class="muted">iPhoneではキーボードのマイクから話して入力できます。Well-Bodyは文字になった内容だけを解析します。</p>
 <ul id="voiceItems" class="meal-list"></ul>
-<p id="voiceItemsEmpty" class="note">音声で複数の食品を続けて話すと、ここに順番に追加されます。</p>
+<p id="voiceItemsEmpty" class="note">食品名と量が分かる内容は候補に反映します。分からない内容は勝手に記録しません。</p>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
 <label>食品検索<input id="foodSearch" type="search" placeholder="食品名で検索（例：鶏むね、ご飯、豆腐）" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></label>
@@ -340,14 +340,39 @@ function stopVoice(){
  setVoiceUI(false,"音声入力を終了しました。");
 }
 
-function startVoiceRecognition(){
- voiceListening=false;
- activeRecognition=null;
- setVoiceUI(false,"iPhone Safariで安定動作しないため、アプリ内音声認識は現在停止しています。キーボードの音声入力をご利用ください。");
+function detectMealTypeFromText(text){
+ const s=normalizeVoiceText(text);
+ if(/朝食|朝ごはん|朝御飯|朝に/.test(s))return "breakfast";
+ if(/昼食|昼ごはん|昼御飯|昼に/.test(s))return "lunch";
+ if(/間食|おやつ/.test(s))return "snack";
+ if(/夕食|晩ごはん|晩御飯|夜ごはん|夜に/.test(s))return "dinner";
+ return null;
 }
 
-function toggleVoice(){
- startVoiceRecognition();
+function analyzeNaturalMealText(){
+ const input=document.getElementById("voiceText");
+ const message=document.getElementById("voiceMessage");
+ const spoken=normalizeVoiceText(input?.value||"");
+ if(!spoken){if(message)message.textContent="食べたものを入力してください。";return;}
+ const mealType=detectMealTypeFromText(spoken);
+ if(mealType)document.getElementById("mealType").value=mealType;
+ const items=parseVoiceItems(spoken);
+ if(items.length){
+  voiceItems=[];
+  items.forEach(item=>queueVoiceItem(item.food,item.grams));
+  if(message)message.textContent="入力内容から"+items.length+"件を見つけました。内容を確認してから記録してください。";
+  return;
+ }
+ const hit=findFoodFromVoice(spoken);
+ const grams=parseVoiceAmount(spoken);
+ if(hit){
+  document.getElementById("foodSelect").value=hit.foodId;
+  updateSelectedFoodMessage();
+  if(grams)document.getElementById("foodGrams").value=grams;
+  if(message)message.textContent="食品候補を見つけました。量を確認してから記録してください。";
+  return;
+ }
+ if(message)message.textContent="登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。";
 }
 
 let voiceItems=[];

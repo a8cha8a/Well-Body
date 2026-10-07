@@ -9,6 +9,10 @@
 h1{font-size:26px;margin:4px 0 16px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
 h2{font-size:19px;margin:0 0 14px}.form{display:grid;gap:10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:13px;color:#555}input,select{width:100%;padding:11px;margin-top:4px;border:1px solid #ccc;border-radius:9px;background:#fff;font-size:16px}
 button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.secondary{background:#777}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}.history{margin:0;padding:0;list-style:none}.history li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.history li:last-child{border-bottom:0}.meal-list{margin:0;padding:0;list-style:none}.meal-list li{padding:10px 0;border-bottom:1px solid #eee}.meal-list li:last-child{border-bottom:0}.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.macro div{background:#f5f5f5;border-radius:8px;padding:8px;text-align:center;font-size:12px}.macro strong{display:block;font-size:15px}.advice{background:#f5f5f5;border-radius:10px;padding:10px;margin-top:10px;font-size:13px}.danger{color:#b00020;font-weight:600}.muted{color:#666;font-size:12px}
+.feedback{display:none;margin:4px 0 0;padding:11px 12px;border-radius:9px;font-size:13px;font-weight:600;line-height:1.5}
+.feedback.error{display:block;color:#8a0018;background:#fff0f2;border:1px solid #d94b64}
+.feedback.success{display:block;color:#17652b;background:#effaf2;border:1px solid #6ab77a}
+input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </style>
 </head>
 <body>
@@ -124,7 +128,7 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 <label>量(g)<input id="foodGrams" type="number" min="1" step="1" value="100"></label>
 <div><label>&nbsp;</label><button onclick="addMeal()">食事を追加</button></div>
 </div>
-<p id="mealInputMessage" class="note" aria-live="polite"></p>
+<p id="mealInputMessage" class="feedback" role="status" aria-live="polite"></p>
 </div>
 <p class="muted">食品・栄養値はMEXT食品マスターを基準にしています。栄養値が不完全な食品は記録時に保護されます。</p>
 </div>
@@ -452,7 +456,14 @@ function createMealId(){
  return "meal-"+Date.now()+"-"+Math.random().toString(36).slice(2);
 }
 
+function setMealInputFeedback(message,type){
+ const box=document.getElementById("mealInputMessage");
+ const gramsInput=document.getElementById("foodGrams");
+ if(box){box.textContent=message||"";box.className="feedback"+(type?" "+type:"");}
+ if(gramsInput)gramsInput.classList.toggle("input-error",type==="error"&&message.includes("量"));
+}
 function addMeal(){
+ setMealInputFeedback("","");
  const type=document.getElementById("mealType").value;
  const rawItems=voiceItems.length?[...voiceItems]:null;
  const items=[];
@@ -469,11 +480,11 @@ function addMeal(){
   const food=foodMap.get(foodId);
   const message=document.getElementById("mealInputMessage");
   if(!food){
-   if(message)message.textContent="食品を選択してください。";
+   if(message)setMealInputFeedback("食品を選択してください。","error");
    return;
   }
   if(!Number.isFinite(grams)||grams<=0){
-   if(message)message.textContent="量は1g以上で入力してください。";
+   if(message)setMealInputFeedback("量は1g以上で入力してください。","error");
    return;
   }
   const mealItem=WellBodyModels.createMealItem(food,grams);
@@ -481,7 +492,7 @@ function addMeal(){
  }
  if(!items.length){
   const message=document.getElementById("mealInputMessage");
-  if(message)message.textContent="この食品は栄養値が不完全なため記録できません。別の食品を選択してください。";
+  if(message)setMealInputFeedback("この食品は栄養値が不完全なため記録できません。別の食品を選択してください。","error");
   return;
  }
  const meal=WellBodyModels.createMeal({mealId:createMealId(),date:dateKey(),type,items});
@@ -491,13 +502,13 @@ function addMeal(){
  if(saveResult&&saveResult.ok===false){
   meals.pop();
   const message=document.getElementById("mealInputMessage");
-  if(message)message.textContent="保存できませんでした。端末の保存設定を確認して、もう一度お試しください。";
+  if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");
   return;
  }
  renderMeals();
  renderVoiceItems();
  const message=document.getElementById("mealInputMessage");
- if(message)message.textContent="食事を追加しました。今日の食事・PFCに反映されています。";
+ if(message)setMealInputFeedback("食事を追加しました。今日の食事・PFCに反映されています。","success");
  document.getElementById("foodGrams").value=100;
 }
 

@@ -67,3 +67,17 @@ test("meal selection UX keeps MEXT source-of-truth visible",()=>{
  assert.ok(index.includes("食品・栄養値はMEXT食品マスターを基準にしています。"));
  assert.equal(index.includes("※現在は動作確認用の食品データです。後の工程で食品データを拡張します。"),false);
 });
+
+
+test("meal input gives clear validation and success feedback",()=>{
+ assert.ok(index.includes('id="mealInputMessage"'));
+ assert.ok(index.includes("量は1g以上で入力してください。"));
+ assert.ok(index.includes("食品を選択してください。"));
+ assert.ok(index.includes("食事を追加しました。今日の食事・PFCに反映されています。"));
+ assert.ok(index.includes("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。"));
+});
+
+test("voice selection refreshes selected food confirmation",()=>{
+ assert.ok(index.includes("if(hit){document.getElementById(\"foodSelect\").value=hit.foodId;updateSelectedFoodMessage();}"));
+ assert.ok(index.includes('document.getElementById("foodSelect").value=food.foodId;\n updateSelectedFoodMessage();'));
+});

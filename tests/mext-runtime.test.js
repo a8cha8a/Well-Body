@@ -122,3 +122,14 @@ test("natural parser preserves known foods even when quantity is unknown",()=>{
  assert.ok(index.includes("食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。"));
  assert.ok(index.includes('document.getElementById("foodGrams").value="";'));
 });
+
+
+test("natural quantities classify servings without unsafe gram conversion",()=>{
+ assert.ok(index.includes("function parseNaturalQuantity(text)"));
+ assert.ok(index.includes('(個|杯|枚|本|パック|袋|皿|人前)'));
+ assert.ok(index.includes('kind:"serving"'));
+ assert.ok(index.includes('grams:null'));
+ assert.ok(index.includes("g換算できる基準がありません。量を確認してください。"));
+ assert.ok(index.includes('/半分|半量/'));
+ assert.ok(index.includes('/大盛り|少なめ|多め/'));
+});

@@ -93,8 +93,12 @@ test("meal input feedback distinguishes errors and success visually",()=>{
 });
 
 
-test("unstable in-app speech recognition is disabled",()=>{
- assert.ok(index.includes("iPhone Safariで安定動作しないため、アプリ内音声認識は現在停止しています。キーボードの音声入力をご利用ください。"));
+test("natural meal input uses iPhone dictation without browser speech recognition",()=>{
+ assert.ok(index.includes('placeholder="例：昼食は親子丼とサラダだった"'));
+ assert.ok(index.includes("iPhoneではキーボードのマイクから話して入力できます。Well-Bodyは文字になった内容だけを解析します。"));
+ assert.ok(index.includes("function analyzeNaturalMealText()"));
+ assert.ok(index.includes("function detectMealTypeFromText(text)"));
+ assert.ok(index.includes("未登録料理として扱う候補です。勝手には記録しません。"));
  assert.equal(index.includes("new SpeechRecognition()"),false);
  assert.equal(index.includes("rec.start()"),false);
 });

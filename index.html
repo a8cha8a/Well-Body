@@ -219,7 +219,11 @@ function renderFoodOptions(){
   o.textContent=f.name+(f.nutritionStatus&&f.nutritionStatus!=="known"?"（栄養値一部未収載）":"");
   select.appendChild(o);
  });
- if(!matches.length)document.getElementById("foodSearchMessage").textContent="該当する食品がありません。別の名称で検索してください。";
+ if(!matches.length){
+  document.getElementById("foodSearchMessage").textContent="該当する食品がありません。別の名称で検索してください。";
+ }else if(query){
+  document.getElementById("foodSearchMessage").textContent=matches.length+"件の候補が見つかりました。";
+ }
 }
 function loadMeals(){
  try{

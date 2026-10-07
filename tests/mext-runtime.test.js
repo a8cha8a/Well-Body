@@ -49,3 +49,13 @@ test("complete food data still creates a meal snapshot",()=>{
  assert.equal(item.fat,7.5);
  assert.equal(item.carbs,30);
 });
+
+
+test("daily meal totals aggregate fat into the displayed f total",()=>{
+ assert.ok(index.includes("const totals={kcal:0,p:0,f:0,c:0}"));
+ assert.ok(index.includes("totals.kcal+=item.kcal;"));
+ assert.ok(index.includes("totals.p+=item.protein;"));
+ assert.ok(index.includes("totals.f+=item.fat;"));
+ assert.ok(index.includes("totals.c+=item.carbs;"));
+ assert.equal(index.includes("totals.fat+=item.fat;"),false);
+});

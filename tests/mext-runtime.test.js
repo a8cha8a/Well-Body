@@ -224,3 +224,9 @@ test("ambiguous mixed food quantities remain unrecorded",()=>{
  assert.equal(result[0].grams,null);
  assert.equal(vm.runInContext('hasUnrecognizedFood("ご飯とサラダ100g")',ctx),true);
 });
+
+test("editing analyzed text keeps a visible reanalysis warning",()=>{
+ assert.ok(index.includes('setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");'));
+ assert.ok(index.includes('.analysis-feedback.warning{'));
+ assert.ok(index.includes('role="status" aria-live="polite"'));
+});

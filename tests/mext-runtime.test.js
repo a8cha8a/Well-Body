@@ -133,3 +133,10 @@ test("natural quantities classify servings without unsafe gram conversion",()=>{
  assert.ok(index.includes('/半分|半量/'));
  assert.ok(index.includes('/大盛り|少なめ|多め/'));
 });
+
+
+test("meal queue survives failed saves and unknown-quantity parsing cannot submit partial queue",()=>{
+ assert.ok(index.includes('if(incompleteItems.length){\n   voiceItems=[];\n   renderVoiceItems();'));
+ assert.equal(index.includes('  voiceItems=[];\n }else{\n  const foodId='),false);
+ assert.ok(index.includes(' voiceItems=[];\n renderMeals();\n renderVoiceItems();'));
+});

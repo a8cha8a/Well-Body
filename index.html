@@ -147,6 +147,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <label>炭水化物(g)<input id="customDishCarbs" type="number" min="0" step="any"></label>
 <button type="button" onclick="registerCustomDish()">マイ料理を保存</button>
 <p id="customDishMessage" class="feedback" role="status" aria-live="polite"></p>
+<div id="customDishList" aria-live="polite"></div>
 </div>
 </details>
 <p class="muted">食品・栄養値はMEXT食品マスターを基準にしています。栄養値が不完全な食品は記録時に保護されます。</p>
@@ -265,11 +266,34 @@ function renderFoodOptions(){
   document.getElementById("foodSearchMessage").textContent=matches.length+"件の候補が見つかりました。";
  }
 }
+function renderCustomDishList(){
+ const el=document.getElementById("customDishList");
+ if(!el)return;
+ el.replaceChildren();
+ const title=document.createElement("p");
+ title.textContent="登録済みのマイ料理（"+customDishes.length+"件）";
+ el.appendChild(title);
+ if(!customDishes.length){
+  const empty=document.createElement("p");
+  empty.className="muted";
+  empty.textContent="まだ登録されていません。";
+  el.appendChild(empty);
+  return;
+ }
+ const list=document.createElement("ul");
+ customDishes.forEach(dish=>{
+  const li=document.createElement("li");
+  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）";
+  list.appendChild(li);
+ });
+ el.appendChild(list);
+}
 function loadCustomDishes(){
  try{
   const result=WellBodyStorage.create().getCustomDishes();
   customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
  }catch(e){customDishes=[]}
+ renderCustomDishList();
 }
 function registerCustomDish(){
  const value=id=>document.getElementById(id).value.trim();
@@ -306,6 +330,7 @@ function registerCustomDish(){
   return;
  }
  customDishes=next;
+ renderCustomDishList();
  const food=WellBodyModels.customDishToFood(dish);
  foodData.push(food);
  foodMap.set(food.foodId,food);

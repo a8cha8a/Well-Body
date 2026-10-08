@@ -140,3 +140,44 @@ test("meal queue survives failed saves and unknown-quantity parsing cannot submi
  assert.equal(index.includes('  voiceItems=[];\n }else{\n  const foodId='),false);
  assert.ok(index.includes(' voiceItems=[];\n renderMeals();\n renderVoiceItems();'));
 });
+
+const vm=require("node:vm");
+function parserContext(){
+ const html=fs.readFileSync(require.resolve("../index.html"),"utf8");
+ const start=html.indexOf("function normalizeVoiceText(text){");
+ const end=html.indexOf("function findFoodFromVoice(text){",start);
+ assert.ok(start>=0&&end>start);
+ const context=vm.createContext({
+  foodData:[
+   {foodId:"rice",name:"ご飯"},
+   {foodId:"natto",name:"納豆"},
+   {foodId:"egg",name:"卵"}
+  ],
+  customDishes:[]
+ });
+ vm.runInContext(html.slice(start,end).replace("function hasUnrecognizedFood(text){","function findCustomDishMatches(text){return []; }\nfunction hasUnrecognizedFood(text){"),context);
+ return context;
+}
+test("natural parser does not attach salad grams to rice",()=>{
+ const ctx=parserContext();
+ const result=vm.runInContext('parseVoiceItems("ご飯とサラダ100g")',ctx);
+ assert.equal(result.length,1);
+ assert.equal(result[0].grams,null);
+ assert.equal(vm.runInContext('hasUnrecognizedFood("ご飯とサラダ100g")',ctx),true);
+});
+test("natural parser flags unknown foods in mixed inputs",()=>{
+ const ctx=parserContext();
+ assert.equal(vm.runInContext('hasUnrecognizedFood("ご飯200gとサラダ100g")',ctx),true);
+ assert.equal(vm.runInContext('hasUnrecognizedFood("納豆100gとご飯150g")',ctx),false);
+});
+test("natural parser handles full-width decimals and rejects negative quantities",()=>{
+ const ctx=parserContext();
+ assert.equal(vm.runInContext('parseVoiceAmount("１．５kg")',ctx),1500);
+ assert.equal(vm.runInContext('parseVoiceAmount("二百グラム")',ctx),200);
+ assert.equal(vm.runInContext('parseVoiceAmount("-100g")',ctx),null);
+});
+test("meal saving rejects partial queue and blocked analyses",()=>{
+ assert.ok(index.includes('if(items.length!==rawItems.length)return;'));
+ assert.ok(index.includes('if(voiceAnalysisBlocked){setMealInputFeedback('));
+ assert.ok(index.includes('if(saveResult!==true){'));
+});

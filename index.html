@@ -130,6 +130,20 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </div>
 <p id="mealInputMessage" class="feedback" role="status" aria-live="polite"></p>
 </div>
+<details class="card">
+<summary>マイ料理を登録</summary>
+<p class="muted">料理名と、基準量あたりの栄養値を入力してください。不明な値を0として登録しないでください。</p>
+<div class="form">
+<label>料理名<input id="customDishName" type="text" maxlength="80" autocomplete="off"></label>
+<label>基準量(g)<input id="customDishWeight" type="number" min="1" step="any"></label>
+<label>基準量のkcal<input id="customDishKcal" type="number" min="0" step="any"></label>
+<label>たんぱく質(g)<input id="customDishProtein" type="number" min="0" step="any"></label>
+<label>脂質(g)<input id="customDishFat" type="number" min="0" step="any"></label>
+<label>炭水化物(g)<input id="customDishCarbs" type="number" min="0" step="any"></label>
+<button type="button" onclick="registerCustomDish()">マイ料理を保存</button>
+<p id="customDishMessage" class="feedback" role="status" aria-live="polite"></p>
+</div>
+</details>
 <p class="muted">食品・栄養値はMEXT食品マスターを基準にしています。栄養値が不完全な食品は記録時に保護されます。</p>
 </div>
 
@@ -249,6 +263,54 @@ function loadCustomDishes(){
   const result=WellBodyStorage.create().getCustomDishes();
   customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
  }catch(e){customDishes=[]}
+}
+function registerCustomDish(){
+ const value=id=>document.getElementById(id).value.trim();
+ const message=document.getElementById("customDishMessage");
+ const fields=["customDishWeight","customDishKcal","customDishProtein","customDishFat","customDishCarbs"];
+ if(!value("customDishName")||fields.some(id=>value(id)==="")){
+  message.textContent="料理名と栄養値をすべて入力してください。";
+  message.className="feedback error";
+  return;
+ }
+ const dish=WellBodyModels.createCustomDish({
+  dishId:"dish-"+Date.now()+"-"+Math.random().toString(36).slice(2),
+  name:value("customDishName"),
+  referenceWeight:value("customDishWeight"),
+  kcal:value("customDishKcal"),
+  protein:value("customDishProtein"),
+  fat:value("customDishFat"),
+  carbs:value("customDishCarbs")
+ });
+ if(!dish){
+  message.textContent="基準量と栄養値を確認してください。";
+  message.className="feedback error";
+  return;
+ }
+ if(customDishes.some(existing=>existing.name===dish.name)){
+  message.textContent="同名の料理が登録されています。";
+  message.className="feedback error";
+  return;
+ }
+ const next=[...customDishes,dish];
+ if(WellBodyStorage.create().saveCustomDishes(next)!==true){
+  message.textContent="保存できませんでした。入力内容は残っています。";
+  message.className="feedback error";
+  return;
+ }
+ customDishes=next;
+ const food=WellBodyModels.customDishToFood(dish);
+ foodData.push(food);
+ foodMap.set(food.foodId,food);
+ document.getElementById("foodSearch").value=dish.name;
+ renderFoodOptions();
+ document.getElementById("foodSelect").value=food.foodId;
+ updateSelectedFoodMessage();
+ voiceAnalysisBlocked=false;
+ voiceItems=[];
+ renderVoiceItems();
+ message.textContent="マイ料理を保存しました。食品一覧から選べます。";
+ message.className="feedback success";
 }
 function findCustomDishMatches(text){
  const s=normalizeVoiceText(text).toLowerCase();

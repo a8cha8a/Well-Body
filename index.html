@@ -383,6 +383,7 @@ function findFoodMatches(text){
    while(true){
     const i=s.indexOf(alias.toLowerCase(),pos);
     if(i<0)break;
+    if(food.foodId==="rice"&&/^(?:朝ごはん|昼ごはん|夜ごはん|晩ごはん)/.test(s.slice(Math.max(0,i-1),i+alias.length+3))){pos=i+alias.length;continue;}
     matches.push({food,alias,start:i,end:i+alias.length});
     pos=i+alias.length;
    }

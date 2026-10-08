@@ -424,6 +424,8 @@ function analyzeNaturalMealText(){
   if(message)message.textContent=grams?"食品候補を見つけました。量を確認してから記録してください。":"食品候補を見つけました。量が分からないため、量を入力してから記録してください。";
   return;
  }
+ document.getElementById("foodSelect").value="";
+ document.getElementById("foodGrams").value="";
  if(message)message.textContent="登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。";
 }
 

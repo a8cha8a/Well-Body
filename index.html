@@ -303,14 +303,16 @@ function parseNaturalQuantity(text){
 }
 
 function findFoodMatches(text){
- const s=normalizeVoiceText(text);
+ const s=normalizeVoiceText(text).toLowerCase();
  const matches=[];
+ // Natural input uses a small, reviewed alias set. Never scan all 2,538 MEXT names.
  for(const food of foodData){
-  const names=[food.name.split("（")[0],...(voiceAliases[food.foodId]||[])];
-  for(const alias of names){
+  const aliases=voiceAliases[food.foodId]||[];
+  for(const alias of aliases){
+   if(alias.length<2)continue;
    let pos=0;
    while(true){
-    const i=s.toLowerCase().indexOf(alias.toLowerCase(),pos);
+    const i=s.indexOf(alias.toLowerCase(),pos);
     if(i<0)break;
     matches.push({food,alias,start:i,end:i+alias.length});
     pos=i+alias.length;
@@ -320,8 +322,7 @@ function findFoodMatches(text){
  matches.sort((a,b)=>a.start-b.start || b.alias.length-a.alias.length);
  const selected=[];
  for(const m of matches){
-  const overlap=selected.some(x=>m.start<x.end && x.start<m.end);
-  if(!overlap)selected.push(m);
+  if(!selected.some(x=>m.start<x.end&&x.start<m.end))selected.push(m);
  }
  return selected.sort((a,b)=>a.start-b.start);
 }

@@ -253,6 +253,7 @@ test("multiple custom dishes are rejected in executable analysis flow without wr
   document:{getElementById:id=>nodes[id]||{value:""}},
   normalizeVoiceText:s=>s,voiceItems:[],voiceAnalysisBlocked:false,
   renderVoiceItems:()=>{},detectMealTypeFromText:()=>null,
+  setVoiceAnalysisFeedback:(message,type)=>{nodes.voiceMessage.textContent=({error:"⚠ 要修正：",warning:"ⓘ 要確認：",success:"✓ 解析成功："}[type]||"")+message;nodes.voiceMessage.className="analysis-feedback "+type;},
   hasUnrecognizedFood:()=>false,parseVoiceItems:()=>[],
   findCustomDishMatches:()=>[{name:"テスト料理A"},{name:"テスト料理B"}],
   parseVoiceAmount:()=>100,

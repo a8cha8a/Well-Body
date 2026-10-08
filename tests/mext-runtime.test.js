@@ -230,3 +230,9 @@ test("editing analyzed text keeps a visible reanalysis warning",()=>{
  assert.ok(index.includes('.analysis-feedback.warning{'));
  assert.ok(index.includes('role="status" aria-live="polite"'));
 });
+
+test("multiple custom dish matches are blocked rather than selecting the first",()=>{
+ assert.ok(index.includes("if(customHits.length>1){"));
+ assert.ok(index.includes("複数のマイ料理が見つかりました。誤記録防止のため1品ずつ入力してください。"));
+ assert.ok(index.includes('voiceAnalysisBlocked=true;\n   document.getElementById("foodSelect").value="";'));
+});

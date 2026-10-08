@@ -402,6 +402,13 @@ function analyzeNaturalMealText(){
   return;
  }
  const items=parseVoiceItems(spoken);
+ if(items.length&&findCustomDishMatches(spoken).length){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  if(message)message.textContent="マイ料理と食品が混在しています。誤記録防止のため別々に入力してください。";
+  return;
+ }
  if(items.length){
   const completeItems=items.filter(item=>item.grams);
   const incompleteItems=items.filter(item=>!item.grams);

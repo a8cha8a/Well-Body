@@ -195,3 +195,15 @@ test("meal history does not interpolate user-provided food names as HTML",()=>{
  assert.ok(index.includes('li.appendChild(document.createTextNode(" "+foodName+" "+item.grams+"g"));'));
  assert.equal(index.includes('li.innerHTML="<strong>"+typeName+"</strong> "+foodName'),false);
 });
+
+test("meal phrases are not silently logged as rice",()=>{
+ const ctx=parserContext();
+ assert.equal(vm.runInContext('findFoodMatches("朝ごはん")',ctx).length,0);
+ assert.equal(vm.runInContext('findFoodMatches("昼ごはん")',ctx).length,0);
+ assert.equal(vm.runInContext('findFoodMatches("ご飯200g")',ctx).length,1);
+});
+test("editing text invalidates candidates until reanalysis",()=>{
+ assert.ok(index.includes('document.getElementById("voiceText").addEventListener("input",()=>{'));
+ assert.ok(index.includes('voiceAnalysisBlocked=true;'));
+ assert.ok(index.includes('入力が変更されました。もう一度解析してください。'));
+});

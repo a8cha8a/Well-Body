@@ -494,6 +494,14 @@ function addMeal(){
  const rawItems=voiceItems.length?[...voiceItems]:null;
  const items=[];
  if(rawItems){
+  const selectedId=document.getElementById("foodSelect").value;
+  const selectedGrams=Number(document.getElementById("foodGrams").value);
+  const last=rawItems[rawItems.length-1];
+  if(selectedId!==last.foodId||selectedGrams!==last.grams){
+   if(rawItems.length!==1){setMealInputFeedback("複数食品の修正は一括保存できません。入力内容を修正して再解析してください。","error");return;}
+   if(!selectedId||!Number.isFinite(selectedGrams)||selectedGrams<=0){setMealInputFeedback("修正した食品と量を確認してください。","error");return;}
+   rawItems[0]={foodId:selectedId,grams:selectedGrams};
+  }
   rawItems.forEach(item=>{
    const food=foodMap.get(item.foodId);
    const mealItem=WellBodyModels.createMealItem(food,item.grams);

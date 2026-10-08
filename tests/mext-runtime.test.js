@@ -116,7 +116,7 @@ test("natural meal input checks custom dishes and never invents 100g when amount
 
 
 test("natural parser preserves known foods even when quantity is unknown",()=>{
- assert.ok(index.includes("return {food:current.food,grams:grams&&grams>0?grams:null};"));
+ assert.ok(index.includes('return {food:current.food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null,quantity};'));
  assert.ok(index.includes("const completeItems=items.filter(item=>item.grams);"));
  assert.ok(index.includes("const incompleteItems=items.filter(item=>!item.grams);"));
  assert.ok(index.includes("食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。"));

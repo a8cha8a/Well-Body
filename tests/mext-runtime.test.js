@@ -247,7 +247,7 @@ test("distinct custom dishes parse independently with correct gram amounts",()=>
   normalizeVoiceText:s=>s,
   findFoodMatches:()=>[],
   findCustomDishMatches:part=>dishes.filter(d=>part.includes(d.name)),
-  parseNaturalQuantity:part=>{const m=part.match(/(\\d+)g/);return {kind:"grams",grams:m?Number(m[1]):null};},
+  parseNaturalQuantity:part=>{const m=part.match(/(\d+)g/);return {kind:"grams",grams:m?Number(m[1]):null};},
   WellBodyModels:{customDishToFood:d=>({foodId:"custom:"+d.dishId,name:d.name})}
  });
  vm.runInContext(html.slice(start,end),ctx);

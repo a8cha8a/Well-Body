@@ -207,3 +207,20 @@ test("editing text invalidates candidates until reanalysis",()=>{
  assert.ok(index.includes('voiceAnalysisBlocked=true;'));
  assert.ok(index.includes('入力が変更されました。もう一度解析してください。'));
 });
+
+test("natural parser does not silently merge repeated food mentions",()=>{
+ const ctx=parserContext();
+ const result=vm.runInContext('parseVoiceItems("納豆100gと納豆50g")',ctx);
+ assert.equal(result.length,2);
+ assert.equal(result[0].grams,100);
+ assert.equal(result[1].grams,50);
+ assert.ok(index.includes('new Set(items.map(item=>item.food.foodId)).size!==items.length'));
+ assert.ok(index.includes('同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。'));
+});
+
+test("ambiguous mixed food quantities remain unrecorded",()=>{
+ const ctx=parserContext();
+ const result=vm.runInContext('parseVoiceItems("ご飯とサラダ100g")',ctx);
+ assert.equal(result[0].grams,null);
+ assert.equal(vm.runInContext('hasUnrecognizedFood("ご飯とサラダ100g")',ctx),true);
+});

@@ -12,6 +12,11 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 .feedback{display:none;margin:4px 0 0;padding:11px 12px;border-radius:9px;font-size:13px;font-weight:600;line-height:1.5}
 .feedback.error{display:block;color:#8a0018;background:#fff0f2;border:1px solid #d94b64}
 .feedback.success{display:block;color:#17652b;background:#effaf2;border:1px solid #6ab77a}
+.analysis-feedback{display:block;margin:10px 0;padding:12px;border-radius:9px;font-size:14px;font-weight:600;line-height:1.6}
+.analysis-feedback.error{color:#8a0018;background:#fff0f2;border:2px solid #d94b64}
+.analysis-feedback.warning{color:#164d78;background:#eef6ff;border:2px solid #6aa6d7}
+.analysis-feedback.success{color:#17652b;background:#effaf2;border:2px solid #6ab77a}
+.analysis-feedback.neutral{color:#444;background:#f3f4f6;border:1px solid #c9cdd2}
 input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </style>
 </head>
@@ -115,7 +120,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <div class="row">
 <div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="analyzeNaturalMealText()">入力内容を解析</button></div>
 </div>
-<p id="voiceMessage" class="muted">iPhoneではキーボードのマイクから話して入力できます。Well-Bodyは文字になった内容だけを解析します。</p>
+<p id="voiceMessage" class="analysis-feedback neutral" role="status" aria-live="polite">iPhoneではキーボードのマイクから話して入力できます。Well-Bodyは文字になった内容だけを解析します。</p>
 <ul id="voiceItems" class="meal-list"></ul>
 <p id="voiceItemsEmpty" class="note">食品名と量が分かる内容は候補に反映します。分からない内容は勝手に記録しません。</p>
 <div class="form">
@@ -453,6 +458,14 @@ function detectMealTypeFromText(text){
  return null;
 }
 
+function setVoiceAnalysisFeedback(message,type){
+ const box=document.getElementById("voiceMessage");
+ if(!box)return;
+ const prefix={error:"⚠ 要修正：",warning:"ⓘ 要確認：",success:"✓ 解析成功：",neutral:""}[type]||"";
+ box.textContent=prefix+message;
+ box.className="analysis-feedback "+(type||"neutral");
+}
+
 function analyzeNaturalMealText(){
  const input=document.getElementById("voiceText");
  const message=document.getElementById("voiceMessage");
@@ -464,7 +477,7 @@ function analyzeNaturalMealText(){
   voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
-  if(message)message.textContent="食べたものを入力してください。";return;
+  setVoiceAnalysisFeedback("食べたものを入力してください。","error");return;
  }
  const mealType=detectMealTypeFromText(spoken);
  if(mealType)document.getElementById("mealType").value=mealType;
@@ -472,7 +485,7 @@ function analyzeNaturalMealText(){
   voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
-  if(message)message.textContent="未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。";
+  setVoiceAnalysisFeedback("未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。","error");
   return;
  }
  const items=parseVoiceItems(spoken);
@@ -480,13 +493,13 @@ function analyzeNaturalMealText(){
   voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
-  if(message)message.textContent="マイ料理と食品が混在しています。誤記録防止のため別々に入力してください。";
+  setVoiceAnalysisFeedback("マイ料理と食品が混在しています。誤記録防止のため別々に入力してください。","error");
   return;
  }
  if(items.length){
   if(items.length>1&&new Set(items.map(item=>item.food.foodId)).size!==items.length){
    voiceAnalysisBlocked=true;
-   if(message)message.textContent="同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。";
+   setVoiceAnalysisFeedback("同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。","error");
    return;
   }
   const completeItems=items.filter(item=>item.grams);
@@ -503,8 +516,8 @@ function analyzeNaturalMealText(){
    document.getElementById("foodSelect").value=item.food.foodId;
    updateSelectedFoodMessage();
    document.getElementById("foodGrams").value="";
-   if(message)message.textContent=item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。量を確認してください。":"食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。";
-  }else if(message)message.textContent="入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。";
+   setVoiceAnalysisFeedback(item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。量を確認してください。":"食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。","warning");
+  }else setVoiceAnalysisFeedback("入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。","success");
   return;
  }
  const customHits=findCustomDishMatches(spoken);
@@ -519,7 +532,7 @@ function analyzeNaturalMealText(){
    document.getElementById("foodSelect").value=customFood.foodId;
    updateSelectedFoodMessage();
    document.getElementById("foodGrams").value=grams||"";
-   if(message)message.textContent=grams?"マイ料理を見つけました。内容を確認してから記録してください。":"マイ料理を見つけました。量が分からないため、量を入力してから記録してください。";
+   setVoiceAnalysisFeedback(grams?"マイ料理を見つけました。内容を確認してから記録してください。":"マイ料理を見つけました。量が分からないため、量を入力してから記録してください。","warning");
    return;
   }
  }
@@ -528,13 +541,13 @@ function analyzeNaturalMealText(){
   document.getElementById("foodSelect").value=hit.foodId;
   updateSelectedFoodMessage();
   document.getElementById("foodGrams").value=grams||"";
-  if(message)message.textContent=grams?"食品候補を見つけました。量を確認してから記録してください。":"食品候補を見つけました。量が分からないため、量を入力してから記録してください。";
+  setVoiceAnalysisFeedback(grams?"食品候補を見つけました。量を確認してから記録してください。":"食品候補を見つけました。量が分からないため、量を入力してから記録してください。","warning");
   return;
  }
  document.getElementById("foodSelect").value="";
  document.getElementById("foodGrams").value="";
  voiceAnalysisBlocked=true;
- if(message)message.textContent="登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。";
+ setVoiceAnalysisFeedback("登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。","error");
 }
 
 let voiceItems=[];

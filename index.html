@@ -9,6 +9,15 @@
 h1{font-size:26px;margin:4px 0 16px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
 h2{font-size:19px;margin:0 0 14px}.form{display:grid;gap:10px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:13px;color:#555}input,select{width:100%;padding:11px;margin-top:4px;border:1px solid #ccc;border-radius:9px;background:#fff;font-size:16px}
 button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color:#fff;font-size:16px}.secondary{background:#777}.result{font-size:16px;line-height:1.8}.big{font-size:30px;font-weight:700}.bar{height:12px;background:#ddd;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;background:#222;width:0%;transition:.3s}.note{font-size:13px;color:#666}.ok{font-weight:600}.history{margin:0;padding:0;list-style:none}.history li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.history li:last-child{border-bottom:0}.meal-list{margin:0;padding:0;list-style:none}.meal-list li{padding:10px 0;border-bottom:1px solid #eee}.meal-list li:last-child{border-bottom:0}.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.macro div{background:#f5f5f5;border-radius:8px;padding:8px;text-align:center;font-size:12px}.macro strong{display:block;font-size:15px}.advice{background:#f5f5f5;border-radius:10px;padding:10px;margin-top:10px;font-size:13px}.danger{color:#b00020;font-weight:600}.muted{color:#666;font-size:12px}
+.feedback{display:none;margin:4px 0 0;padding:11px 12px;border-radius:9px;font-size:13px;font-weight:600;line-height:1.5}
+.feedback.error{display:block;color:#8a0018;background:#fff0f2;border:1px solid #d94b64}
+.feedback.success{display:block;color:#17652b;background:#effaf2;border:1px solid #6ab77a}
+.analysis-feedback{display:block;margin:10px 0;padding:12px;border-radius:9px;font-size:14px;font-weight:600;line-height:1.6}
+.analysis-feedback.error{color:#8a0018;background:#fff0f2;border:2px solid #d94b64}
+.analysis-feedback.warning{color:#164d78;background:#eef6ff;border:2px solid #6aa6d7}
+.analysis-feedback.success{color:#17652b;background:#effaf2;border:2px solid #6ab77a}
+.analysis-feedback.neutral{color:#444;background:#f3f4f6;border:1px solid #c9cdd2}
+input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </style>
 </head>
 <body>
@@ -107,24 +116,41 @@ button{width:100%;padding:13px;border:0;border-radius:10px;background:#222;color
 
 <div class="card">
 <h2>食事を記録</h2>
+<label>話し言葉で食事入力<textarea id="voiceText" rows="2" placeholder="例：昼食は親子丼とサラダだった" autocomplete="off"></textarea></label>
 <div class="row">
-<label>音声入力<input id="voiceText" type="text" placeholder="例：鶏むね肉 150g"></label>
-<div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="toggleVoice()">🎤 音声入力</button></div>
+<div><label>&nbsp;</label><button id="voiceButton" type="button" onclick="analyzeNaturalMealText()">入力内容を解析</button></div>
 </div>
-<p id="voiceMessage" class="muted">対応ブラウザでは音声入力結果から食品と量を自動設定します。</p>
+<p id="voiceMessage" class="analysis-feedback neutral" role="status" aria-live="polite">iPhoneではキーボードのマイクから話して入力できます。Well-Bodyは文字になった内容だけを解析します。</p>
 <ul id="voiceItems" class="meal-list"></ul>
-<p id="voiceItemsEmpty" class="note">音声で複数の食品を続けて話すと、ここに順番に追加されます。</p>
+<p id="voiceItemsEmpty" class="note">食品名と量が分かる内容は候補に反映します。分からない内容は勝手に記録しません。</p>
 <div class="form">
 <label>食事区分<select id="mealType"><option value="breakfast">朝食</option><option value="lunch">昼食</option><option value="snack">間食</option><option value="dinner">夕食</option></select></label>
 <label>食品検索<input id="foodSearch" type="search" placeholder="食品名で検索（例：鶏むね、ご飯、豆腐）" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></label>
 <label>食品<select id="foodSelect"></select></label>
+<p id="selectedFoodMessage" class="note">食品を選択すると、選択内容をここに表示します。</p>
 <p id="foodSearchMessage" class="muted">MEXT食品マスターを読み込み中…</p>
 <div class="row">
 <label>量(g)<input id="foodGrams" type="number" min="1" step="1" value="100"></label>
 <div><label>&nbsp;</label><button onclick="addMeal()">食事を追加</button></div>
 </div>
+<p id="mealInputMessage" class="feedback" role="status" aria-live="polite"></p>
 </div>
-<p class="muted">※現在は動作確認用の食品データです。後の工程で食品データを拡張します。</p>
+<details class="card">
+<summary>マイ料理を登録</summary>
+<p class="muted">料理名と、基準量あたりの栄養値を入力してください。不明な値を0として登録しないでください。</p>
+<div class="form">
+<label>料理名<input id="customDishName" type="text" maxlength="80" autocomplete="off"></label>
+<label>基準量(g)<input id="customDishWeight" type="number" min="1" step="any"></label>
+<label>基準量のkcal<input id="customDishKcal" type="number" min="0" step="any"></label>
+<label>たんぱく質(g)<input id="customDishProtein" type="number" min="0" step="any"></label>
+<label>脂質(g)<input id="customDishFat" type="number" min="0" step="any"></label>
+<label>炭水化物(g)<input id="customDishCarbs" type="number" min="0" step="any"></label>
+<button type="button" onclick="registerCustomDish()">マイ料理を保存</button>
+<p id="customDishMessage" class="feedback" role="status" aria-live="polite"></p>
+<div id="customDishList" aria-live="polite"></div>
+</div>
+</details>
+<p class="muted">食品・栄養値はMEXT食品マスターを基準にしています。栄養値が不完全な食品は記録時に保護されます。</p>
 </div>
 
 <div class="card">
@@ -169,6 +195,7 @@ const demoFoodData=[
 ];
 let foodData=[...demoFoodData];
 let meals=[];
+let customDishes=[];
 const foodMap=new Map(foodData.map(food=>[food.foodId,food]));
 let activeRecognition=null;
 
@@ -206,11 +233,23 @@ async function loadFoodMaster(){
   foodData.forEach(food=>foodMap.set(food.foodId,food));
   document.getElementById("foodSearchMessage").textContent="MEXT食品マスターを読み込めないため、確認用食品データを使用しています。";
  }
+ customDishes.forEach(dish=>{
+  const food=WellBodyModels.customDishToFood(dish);
+  if(food){foodData.push(food);foodMap.set(food.foodId,food);}
+ });
  renderFoodOptions();
+}
+function updateSelectedFoodMessage(){
+ const select=document.getElementById("foodSelect");
+ const box=document.getElementById("selectedFoodMessage");
+ if(!select||!box)return;
+ const food=foodMap.get(select.value);
+ box.textContent=food?"選択中："+food.name+" ／ "+food.referenceWeight+"g基準":"食品を選択してください。";
 }
 function renderFoodOptions(){
  const select=document.getElementById("foodSelect");
  const query=normalizeVoiceText(document.getElementById("foodSearch")?.value||"").toLowerCase();
+ const selectedBefore=select.value;
  const matches=foodData.filter(f=>!query||f.name.toLowerCase().includes(query)).slice(0,80);
  select.innerHTML="";
  matches.forEach(f=>{
@@ -219,12 +258,97 @@ function renderFoodOptions(){
   o.textContent=f.name+(f.nutritionStatus&&f.nutritionStatus!=="known"?"（栄養値一部未収載）":"");
   select.appendChild(o);
  });
+ if(matches.some(f=>f.foodId===selectedBefore))select.value=selectedBefore;
+ updateSelectedFoodMessage();
  if(!matches.length){
   document.getElementById("foodSearchMessage").textContent="該当する食品がありません。別の名称で検索してください。";
  }else if(query){
   document.getElementById("foodSearchMessage").textContent=matches.length+"件の候補が見つかりました。";
  }
 }
+function renderCustomDishList(){
+ const el=document.getElementById("customDishList");
+ if(!el)return;
+ el.replaceChildren();
+ const title=document.createElement("p");
+ title.textContent="登録済みのマイ料理（"+customDishes.length+"件）";
+ el.appendChild(title);
+ if(!customDishes.length){
+  const empty=document.createElement("p");
+  empty.className="muted";
+  empty.textContent="まだ登録されていません。";
+  el.appendChild(empty);
+  return;
+ }
+ const list=document.createElement("ul");
+ customDishes.forEach(dish=>{
+  const li=document.createElement("li");
+  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）";
+  list.appendChild(li);
+ });
+ el.appendChild(list);
+}
+function loadCustomDishes(){
+ try{
+  const result=WellBodyStorage.create().getCustomDishes();
+  customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
+ }catch(e){customDishes=[]}
+ renderCustomDishList();
+}
+function registerCustomDish(){
+ const value=id=>document.getElementById(id).value.trim();
+ const message=document.getElementById("customDishMessage");
+ const fields=["customDishWeight","customDishKcal","customDishProtein","customDishFat","customDishCarbs"];
+ if(!value("customDishName")||fields.some(id=>value(id)==="")){
+  message.textContent="料理名と栄養値をすべて入力してください。";
+  message.className="feedback error";
+  return;
+ }
+ const dish=WellBodyModels.createCustomDish({
+  dishId:"dish-"+Date.now()+"-"+Math.random().toString(36).slice(2),
+  name:value("customDishName"),
+  referenceWeight:value("customDishWeight"),
+  kcal:value("customDishKcal"),
+  protein:value("customDishProtein"),
+  fat:value("customDishFat"),
+  carbs:value("customDishCarbs")
+ });
+ if(!dish){
+  message.textContent="基準量と栄養値を確認してください。";
+  message.className="feedback error";
+  return;
+ }
+ if(customDishes.some(existing=>existing.name===dish.name)){
+  message.textContent="同名の料理が登録されています。";
+  message.className="feedback error";
+  return;
+ }
+ const next=[...customDishes,dish];
+ if(WellBodyStorage.create().saveCustomDishes(next)!==true){
+  message.textContent="保存できませんでした。入力内容は残っています。";
+  message.className="feedback error";
+  return;
+ }
+ customDishes=next;
+ renderCustomDishList();
+ const food=WellBodyModels.customDishToFood(dish);
+ foodData.push(food);
+ foodMap.set(food.foodId,food);
+ document.getElementById("foodSearch").value=dish.name;
+ renderFoodOptions();
+ document.getElementById("foodSelect").value=food.foodId;
+ updateSelectedFoodMessage();
+ voiceAnalysisBlocked=false;
+ voiceItems=[];
+ renderVoiceItems();
+ message.textContent="マイ料理を保存しました。食品一覧から選べます。";
+ message.className="feedback success";
+}
+function findCustomDishMatches(text){
+ const s=normalizeVoiceText(text).toLowerCase();
+ return customDishes.filter(dish=>[dish.name,...dish.aliases].some(name=>s.includes(String(name).toLowerCase())));
+}
+
 function loadMeals(){
  try{
   const result=WellBodyStorage.create().getMeals();
@@ -238,7 +362,7 @@ let voiceListening=false;
 
 function normalizeVoiceText(text){
  return String(text||"")
-  .replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+  .replace(/[０-９．－]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
   .replace(/　/g," ")
   .replace(/[、。]/g," ")
   .replace(/\s+/g," ")
@@ -256,25 +380,40 @@ const voiceAliases={
 
 function parseVoiceAmount(text){
  const s=normalizeVoiceText(text);
- let m=s.match(/(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
- if(m)return Number(m[1])*1000;
- m=s.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
- if(m)return Number(m[1]);
+ if(/(?:^|[^\d])[-−]\s*\d/.test(s))return null;
+ let m=s.match(/(^|[^\d.\-])(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
+ if(m)return Number(m[2])*1000;
+ m=s.match(/(^|[^\d.\-])(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
+ if(m)return Number(m[2]);
  const jp={"百":100,"二百":200,"三百":300,"四百":400,"五百":500,"六百":600,"七百":700,"八百":800,"九百":900};
- for(const k of Object.keys(jp))if(s.includes(k+"グラム"))return jp[k];
+ for(const k of Object.keys(jp).sort((a,b)=>b.length-a.length))if(s.includes(k+"グラム"))return jp[k];
  return null;
 }
 
-function findFoodMatches(text){
+function parseNaturalQuantity(text){
+ const grams=parseVoiceAmount(text);
+ if(grams)return {kind:"grams",grams};
  const s=normalizeVoiceText(text);
+ const m=s.match(/(\d+(?:\.\d+)?)\s*(個|杯|枚|本|パック|袋|皿|人前)/);
+ if(m)return {kind:"serving",value:Number(m[1]),unit:m[2],grams:null};
+ if(/半分|半量/.test(s))return {kind:"relative",value:0.5,unit:"portion",grams:null};
+ if(/大盛り|少なめ|多め/.test(s))return {kind:"relative",label:s.match(/大盛り|少なめ|多め/)[0],grams:null};
+ return {kind:"unknown",grams:null};
+}
+
+function findFoodMatches(text){
+ const s=normalizeVoiceText(text).toLowerCase();
  const matches=[];
+ // Natural input uses a small, reviewed alias set. Never scan all 2,538 MEXT names.
  for(const food of foodData){
-  const names=[food.name.split("（")[0],...(voiceAliases[food.foodId]||[])];
-  for(const alias of names){
+  const aliases=voiceAliases[food.foodId]||[];
+  for(const alias of aliases){
+   if(alias.length<2)continue;
    let pos=0;
    while(true){
-    const i=s.toLowerCase().indexOf(alias.toLowerCase(),pos);
+    const i=s.indexOf(alias.toLowerCase(),pos);
     if(i<0)break;
+    if(food.foodId==="rice"&&/^(?:朝ごはん|昼ごはん|夜ごはん|晩ごはん)/.test(s.slice(Math.max(0,i-1),i+alias.length+3))){pos=i+alias.length;continue;}
     matches.push({food,alias,start:i,end:i+alias.length});
     pos=i+alias.length;
    }
@@ -283,24 +422,54 @@ function findFoodMatches(text){
  matches.sort((a,b)=>a.start-b.start || b.alias.length-a.alias.length);
  const selected=[];
  for(const m of matches){
-  const overlap=selected.some(x=>m.start<x.end && x.start<m.end);
-  if(!overlap)selected.push(m);
+  if(!selected.some(x=>m.start<x.end&&x.start<m.end))selected.push(m);
  }
  return selected.sort((a,b)=>a.start-b.start);
+}
+
+function hasUnrecognizedFood(text){
+ const parts=normalizeVoiceText(text).split(/(?:と|、|,|及び|および)/).map(x=>x.trim()).filter(Boolean);
+ return parts.some((part,index)=>{
+  const cleaned=part.replace(/^(?:朝食|昼食|夕食|晩ごはん|朝ごはん|昼ごはん|夜ごはん|夕飯|朝に|昼に|夜に)(?:は|に|で)?\s*/,"");
+  if(!cleaned)return false;
+  const hits=findFoodMatches(cleaned);
+  const customs=findCustomDishMatches(cleaned);
+  return !hits.length&&!customs.length;
+ });
 }
 
 function parseVoiceItems(text){
  const s=normalizeVoiceText(text);
  const foods=findFoodMatches(s);
- const items=[];
- for(let i=0;i<foods.length;i++){
-  const current=foods[i];
+ return foods.map((current,i)=>{
   const nextStart=i+1<foods.length?foods[i+1].start:s.length;
   const segment=s.slice(current.end,nextStart);
-  const grams=parseVoiceAmount(segment);
-  if(grams&&grams>0)items.push({food:current.food,grams});
+  // Do not assign a later, unrecognized food\'s quantity to this food.
+  const ambiguous=/(?:と|、|,|及び|および)\s*[^\d\s]+\s*\d+(?:\.\d+)?\s*(?:g|グラム|kg|キロ)/i.test(segment);
+  const quantity=ambiguous?{kind:"unknown",grams:null}:parseNaturalQuantity(segment);
+  return {food:current.food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null,quantity};
+ });
+}
+
+function parseMixedMealItems(text){
+ const parts=normalizeVoiceText(text).split(/(?:と|、|,|及び|および)/).map(x=>x.trim()).filter(Boolean);
+ if(parts.length<2)return null;
+ const results=[];
+ for(const part of parts){
+  const dishes=customDishes.filter(dish=>[dish.name,...dish.aliases].some(alias=>part.toLowerCase().includes(String(alias).toLowerCase())));
+  const matches=findFoodMatches(part);
+  if(dishes.length+matches.length!==1)return null;
+  const dish=dishes[0];
+  const food=dish?WellBodyModels.customDishToFood(dish):matches[0].food;
+  if(!food)return null;
+  const aliases=dish?[dish.name,...dish.aliases]:[matches[0].alias];
+  const name=aliases.filter(alias=>part.toLowerCase().includes(String(alias).toLowerCase())).sort((a,b)=>b.length-a.length)[0];
+  if(!name)return null;
+  const at=part.toLowerCase().indexOf(String(name).toLowerCase());
+  const quantity=parseNaturalQuantity(part.slice(at+name.length));
+  results.push({food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null});
  }
- return items;
+ return results;
 }
 
 function findFoodFromVoice(text){
@@ -326,94 +495,141 @@ function stopVoice(){
  setVoiceUI(false,"音声入力を終了しました。");
 }
 
-function startVoiceRecognition(){
- if(!voiceListening)return;
- const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SpeechRecognition){
-  voiceListening=false;
-  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
-  return;
- }
- const rec=new SpeechRecognition();
- activeRecognition=rec;
- rec.lang="ja-JP";
- rec.continuous=false;
- rec.interimResults=false;
- rec.maxAlternatives=1;
-
- rec.onstart=()=>{
-  if(voiceListening)setVoiceUI(true,"音声入力中… 「鶏むね肉150グラム」のように話してください。終了するときはボタンをタップしてください。");
- };
-
- rec.onresult=e=>{
-  if(!voiceListening)return;
-  const spoken=normalizeVoiceText(e.results[e.resultIndex][0].transcript);
-  if(!spoken)return;
-  document.getElementById("voiceText").value=spoken;
-  const items=parseVoiceItems(spoken);
-  if(items.length){
-   items.forEach(item=>queueVoiceItem(item.food,item.grams));
-   document.getElementById("voiceMessage").textContent="認識結果："+spoken+" ／ "+items.length+"件を追加しました。続けて話せます。";
-  }else{
-   const hit=findFoodFromVoice(spoken);
-   const grams=parseVoiceAmount(spoken);
-   if(hit)document.getElementById("foodSelect").value=hit.foodId;
-   if(grams)document.getElementById("foodGrams").value=grams;
-   document.getElementById("voiceMessage").textContent="認識結果："+spoken+(hit?" ／ 食品："+hit.name:" ／ 食品を特定できませんでした")+(grams?" ／ 量："+grams+"g":" ／ 量を特定できませんでした");
-  }
- };
-
- rec.onerror=e=>{
-  const err=e&&e.error?e.error:"unknown";
-  if(!voiceListening)return;
-  if(err==="no-speech"){
-   setVoiceUI(true,"音声が聞き取れませんでした。もう一度話してください。終了するにはボタンをタップしてください。");
-   activeRecognition=null;
-   setTimeout(()=>startVoiceRecognition(),250);
-   return;
-  }
-  voiceListening=false;
-  activeRecognition=null;
-  const message=err==="not-allowed"||err==="service-not-allowed"
-   ?"マイクまたは音声認識が許可されていません。Safariのマイク許可を確認してください。"
-   :"音声入力エラー："+err+"。もう一度お試しください。";
-  setVoiceUI(false,message);
- };
-
- rec.onend=()=>{
-  activeRecognition=null;
-  if(!voiceListening)return;
-  setVoiceUI(true,"次の食品を話してください。終了するには「音声入力を終了」をタップしてください。");
-  setTimeout(()=>startVoiceRecognition(),150);
- };
-
- try{
-  rec.start();
- }catch(e){
-  activeRecognition=null;
-  if(voiceListening){
-   voiceListening=false;
-   setVoiceUI(false,"音声入力を開始できませんでした。Safariのマイク許可を確認してください。");
-  }
- }
+function detectMealTypeFromText(text){
+ const s=normalizeVoiceText(text);
+ if(/朝食|朝ごはん|朝御飯|朝に/.test(s))return "breakfast";
+ if(/昼食|昼ごはん|昼御飯|昼に/.test(s))return "lunch";
+ if(/間食|おやつ/.test(s))return "snack";
+ if(/夕食|夕飯|晩ごはん|晩御飯|夜ごはん|夜に/.test(s))return "dinner";
+ return null;
 }
 
-function toggleVoice(){
- const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SpeechRecognition){
-  setVoiceUI(false,"このSafariでは音声認識を利用できません。");
+function setVoiceAnalysisFeedback(message,type){
+ const box=document.getElementById("voiceMessage");
+ if(!box)return;
+ const prefix={error:"⚠ 要修正：",warning:"ⓘ 要確認：",success:"✓ 解析成功：",neutral:""}[type]||"";
+ box.textContent=prefix+message;
+ box.className="analysis-feedback "+(type||"neutral");
+}
+
+function analyzeNaturalMealText(){
+ const input=document.getElementById("voiceText");
+ const message=document.getElementById("voiceMessage");
+ const spoken=normalizeVoiceText(input?.value||"");
+ voiceItems=[];
+ voiceAnalysisBlocked=false;
+ renderVoiceItems();
+ if(!spoken){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  setVoiceAnalysisFeedback("食べたものを入力してください。","error");return;
+ }
+ const mealType=detectMealTypeFromText(spoken);
+ if(mealType)document.getElementById("mealType").value=mealType;
+ if(hasUnrecognizedFood(spoken)){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  setVoiceAnalysisFeedback("未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。","error");
   return;
  }
- if(voiceListening){
-  stopVoice();
+ const mixedItems=parseMixedMealItems(spoken);
+ if(mixedItems){
+  if(new Set(mixedItems.map(item=>item.food.foodId)).size!==mixedItems.length){
+   voiceAnalysisBlocked=true;
+   setVoiceAnalysisFeedback("同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。","error");
+   return;
+  }
+  if(mixedItems.some(item=>!item.grams)){
+   voiceAnalysisBlocked=true;
+   document.getElementById("foodSelect").value="";
+   document.getElementById("foodGrams").value="";
+   setVoiceAnalysisFeedback("量が分からない食品があります。各食品のg数を確認してください。","warning");
+   return;
+  }
+  mixedItems.forEach(item=>{
+   if(!foodMap.has(item.food.foodId)){
+    foodMap.set(item.food.foodId,item.food);
+    foodData.push(item.food);
+   }
+  });
+  renderFoodOptions();
+  mixedItems.forEach(item=>queueVoiceItem(item.food,item.grams));
+  setVoiceAnalysisFeedback("入力内容から"+mixedItems.length+"件を見つけました。内容を確認してから記録してください。","success");
   return;
  }
- voiceListening=true;
- setVoiceUI(true,"音声入力を開始しています…");
- startVoiceRecognition();
+ const items=parseVoiceItems(spoken);
+ if(items.length&&findCustomDishMatches(spoken).length){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  setVoiceAnalysisFeedback("マイ料理と食品が混在しています。誤記録防止のため別々に入力してください。","error");
+  return;
+ }
+ if(items.length){
+  if(items.length>1&&new Set(items.map(item=>item.food.foodId)).size!==items.length){
+   voiceAnalysisBlocked=true;
+   setVoiceAnalysisFeedback("同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。","error");
+   return;
+  }
+  const completeItems=items.filter(item=>item.grams);
+  const incompleteItems=items.filter(item=>!item.grams);
+  voiceItems=[];
+  if(completeItems.length){
+   completeItems.forEach(item=>queueVoiceItem(item.food,item.grams));
+  }
+  if(incompleteItems.length){
+   voiceAnalysisBlocked=true;
+   voiceItems=[];
+   renderVoiceItems();
+   const item=incompleteItems[0];
+   document.getElementById("foodSelect").value=item.food.foodId;
+   updateSelectedFoodMessage();
+   document.getElementById("foodGrams").value="";
+   setVoiceAnalysisFeedback(item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。量を確認してください。":"食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。","warning");
+  }else setVoiceAnalysisFeedback("入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。","success");
+  return;
+ }
+ const customHits=findCustomDishMatches(spoken);
+ const grams=parseVoiceAmount(spoken);
+ if(customHits.length){
+  if(customHits.length>1){
+   voiceAnalysisBlocked=true;
+   document.getElementById("foodSelect").value="";
+   document.getElementById("foodGrams").value="";
+   setVoiceAnalysisFeedback("複数のマイ料理が見つかりました。誤記録防止のため1品ずつ入力してください。","error");
+   return;
+  }
+  const dish=customHits[0];
+  const customFood=WellBodyModels.customDishToFood(dish);
+  if(customFood){
+   foodMap.set(customFood.foodId,customFood);
+   if(!foodData.some(food=>food.foodId===customFood.foodId))foodData.push(customFood);
+   renderFoodOptions();
+   document.getElementById("foodSelect").value=customFood.foodId;
+   updateSelectedFoodMessage();
+   document.getElementById("foodGrams").value=grams||"";
+   setVoiceAnalysisFeedback(grams?"マイ料理を見つけました。内容を確認してから記録してください。":"マイ料理を見つけました。量が分からないため、量を入力してから記録してください。","warning");
+   return;
+  }
+ }
+ const hit=findFoodFromVoice(spoken);
+ if(hit){
+  document.getElementById("foodSelect").value=hit.foodId;
+  updateSelectedFoodMessage();
+  document.getElementById("foodGrams").value=grams||"";
+  setVoiceAnalysisFeedback(grams?"食品候補を見つけました。量を確認してから記録してください。":"食品候補を見つけました。量が分からないため、量を入力してから記録してください。","warning");
+  return;
+ }
+ document.getElementById("foodSelect").value="";
+ document.getElementById("foodGrams").value="";
+ voiceAnalysisBlocked=true;
+ setVoiceAnalysisFeedback("登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。","error");
 }
 
 let voiceItems=[];
+let voiceAnalysisBlocked=false;
 
 function renderVoiceItems(){
  const list=document.getElementById("voiceItems");
@@ -424,14 +640,22 @@ function renderVoiceItems(){
  voiceItems.forEach((item,index)=>{
   const food=foodData.find(f=>f.foodId===item.foodId);
   const li=document.createElement("li");
-  li.innerHTML="<strong>"+(index+1)+".</strong> "+food.name+" "+item.grams+"g";
+  li.textContent=(index+1)+". "+(food?.name||"不明な食品")+" "+item.grams+"g";
   list.appendChild(li);
  });
 }
 
 function queueVoiceItem(food,grams){
  voiceItems.push({foodId:food.foodId,grams});
- document.getElementById("foodSelect").value=food.foodId;
+ const select=document.getElementById("foodSelect");
+ if(!Array.from(select.options).some(option=>option.value===food.foodId)){
+  const option=document.createElement("option");
+  option.value=food.foodId;
+  option.textContent=food.name;
+  select.appendChild(option);
+ }
+ select.value=food.foodId;
+ updateSelectedFoodMessage();
  document.getElementById("foodGrams").value=grams;
  renderVoiceItems();
 }
@@ -441,35 +665,85 @@ function createMealId(){
  return "meal-"+Date.now()+"-"+Math.random().toString(36).slice(2);
 }
 
+function setMealInputFeedback(message,type){
+ const box=document.getElementById("mealInputMessage");
+ const gramsInput=document.getElementById("foodGrams");
+ if(box){box.textContent=message||"";box.className="feedback"+(type?" "+type:"");}
+ if(gramsInput)gramsInput.classList.toggle("input-error",type==="error"&&message.includes("量"));
+}
 function addMeal(){
+ setMealInputFeedback("","");
+ if(voiceAnalysisBlocked){setMealInputFeedback("未解決の食品があります。入力内容を修正して再解析してください。","error");return;}
  const type=document.getElementById("mealType").value;
  const rawItems=voiceItems.length?[...voiceItems]:null;
  const items=[];
  if(rawItems){
+  const selectedId=document.getElementById("foodSelect").value;
+  const selectedGrams=Number(document.getElementById("foodGrams").value);
+  const last=rawItems[rawItems.length-1];
+  if(selectedId!==last.foodId||selectedGrams!==last.grams){
+   if(rawItems.length!==1){setMealInputFeedback("複数食品の修正は一括保存できません。入力内容を修正して再解析してください。","error");return;}
+   if(!selectedId||!Number.isFinite(selectedGrams)||selectedGrams<=0){setMealInputFeedback("修正した食品と量を確認してください。","error");return;}
+   rawItems[0]={foodId:selectedId,grams:selectedGrams};
+  }
   rawItems.forEach(item=>{
    const food=foodMap.get(item.foodId);
    const mealItem=WellBodyModels.createMealItem(food,item.grams);
-   if(mealItem)items.push(mealItem);
+   if(!mealItem){setMealInputFeedback("栄養値または量を確認できない食品があります。保存を中止しました。","error");return;}
+   items.push(mealItem);
   });
-  voiceItems=[];
+  if(items.length!==rawItems.length)return;
  }else{
   const foodId=document.getElementById("foodSelect").value;
   const grams=Number(document.getElementById("foodGrams").value);
   const food=foodMap.get(foodId);
+  const message=document.getElementById("mealInputMessage");
+  if(!food){
+   if(message)setMealInputFeedback("食品を選択してください。","error");
+   return;
+  }
+  if(!Number.isFinite(grams)||grams<=0){
+   if(message)setMealInputFeedback("量は1g以上で入力してください。","error");
+   return;
+  }
   const mealItem=WellBodyModels.createMealItem(food,grams);
   if(mealItem)items.push(mealItem);
  }
  if(!items.length){
-  document.getElementById("foodSearchMessage").textContent="この食品は栄養値が不完全なため記録できません。別の食品を選択してください。";
+  const message=document.getElementById("mealInputMessage");
+  if(message)setMealInputFeedback("この食品は栄養値が不完全なため記録できません。別の食品を選択してください。","error");
   return;
  }
  const meal=WellBodyModels.createMeal({mealId:createMealId(),date:dateKey(),type,items});
  if(!meal)return;
  meals.push(meal);
- WellBodyStorage.create().saveMeals(meals);
+ const saveResult=WellBodyStorage.create().saveMeals(meals);
+ if(saveResult!==true){
+  meals.pop();
+  const message=document.getElementById("mealInputMessage");
+  if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");
+  return;
+ }
+ voiceItems=[];
  renderMeals();
  renderVoiceItems();
+ const message=document.getElementById("mealInputMessage");
+ if(message)setMealInputFeedback("食事を追加しました。今日の食事・PFCに反映されています。","success");
  document.getElementById("foodGrams").value=100;
+}
+
+function deleteMealById(mealId){
+ const meal=meals.find(m=>m.mealId===mealId);
+ if(!meal)return;
+ if(!window.confirm("この食事記録を削除しますか？\n削除後は元に戻せません。"))return;
+ const next=meals.filter(m=>m.mealId!==mealId);
+ if(WellBodyStorage.create().saveMeals(next)!==true){
+  setMealInputFeedback("削除を保存できませんでした。記録は変更していません。","error");
+  return;
+ }
+ meals=next;
+ renderMeals();
+ setMealInputFeedback("食事記録を削除しました。今日のPFCを更新しました。","success");
 }
 
 function renderMeals(){
@@ -481,6 +755,19 @@ function renderMeals(){
  const totals={kcal:0,p:0,f:0,c:0};
  todays.forEach((m,index)=>{
   const typeName={breakfast:"朝食",lunch:"昼食",snack:"間食",dinner:"夕食"}[m.type];
+  const group=document.createElement("li");
+  const label=document.createElement("strong");
+  label.textContent=(typeName||"食事")+"（"+(m.items||[]).length+"品）";
+  group.appendChild(label);
+  const remove=document.createElement("button");
+  remove.type="button";
+  remove.className="secondary";
+  remove.textContent="この食事を削除";
+  remove.setAttribute("aria-label",(typeName||"食事")+"の記録を削除");
+  remove.addEventListener("click",()=>deleteMealById(m.mealId));
+  group.appendChild(document.createTextNode(" "));
+  group.appendChild(remove);
+  list.appendChild(group);
   (m.items||[]).forEach(item=>{
    const food=foodMap.get(item.foodId);
    const foodName=food ? food.name : "不明な食品";
@@ -492,12 +779,15 @@ function renderMeals(){
     totals.c+=item.carbs;
    }
    const li=document.createElement("li");
-   li.innerHTML="<strong>"+typeName+"</strong> "+foodName+" "+item.grams+"g";
-   if(hasNutrition){
-    li.innerHTML+="<br><span class='muted'>"+Math.round(item.kcal)+" kcal / P "+item.protein.toFixed(1)+"g / F "+item.fat.toFixed(1)+"g / C "+item.carbs.toFixed(1)+"g</span>";
-   }else{
-    li.innerHTML+="<br><span class='muted'>栄養値：不明</span>";
-   }
+   const heading=document.createElement("strong");
+   heading.textContent=typeName;
+   li.appendChild(heading);
+   li.appendChild(document.createTextNode(" "+foodName+" "+item.grams+"g"));
+   li.appendChild(document.createElement("br"));
+   const nutrition=document.createElement("span");
+   nutrition.className="muted";
+   nutrition.textContent=hasNutrition?Math.round(item.kcal)+" kcal / P "+item.protein.toFixed(1)+"g / F "+item.fat.toFixed(1)+"g / C "+item.carbs.toFixed(1)+"g":"栄養値：不明";
+   li.appendChild(nutrition);
    list.appendChild(li);
   });
  });
@@ -756,6 +1046,16 @@ function resetDemo(){
 
 loadData();
 document.getElementById("foodSearch").addEventListener("input",renderFoodOptions);
+document.getElementById("foodSelect").addEventListener("change",updateSelectedFoodMessage);
+document.getElementById("voiceText").addEventListener("input",()=>{
+ voiceItems=[];
+ voiceAnalysisBlocked=true;
+ renderVoiceItems();
+ document.getElementById("foodSelect").value="";
+ document.getElementById("foodGrams").value="";
+ setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");
+});
+loadCustomDishes();
 loadFoodMaster().then(()=>loadMeals());
 renderVoiceItems();
 </script>

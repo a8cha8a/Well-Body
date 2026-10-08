@@ -243,6 +243,7 @@ function updateSelectedFoodMessage(){
 function renderFoodOptions(){
  const select=document.getElementById("foodSelect");
  const query=normalizeVoiceText(document.getElementById("foodSearch")?.value||"").toLowerCase();
+ const selectedBefore=select.value;
  const matches=foodData.filter(f=>!query||f.name.toLowerCase().includes(query)).slice(0,80);
  select.innerHTML="";
  matches.forEach(f=>{
@@ -251,6 +252,7 @@ function renderFoodOptions(){
   o.textContent=f.name+(f.nutritionStatus&&f.nutritionStatus!=="known"?"（栄養値一部未収載）":"");
   select.appendChild(o);
  });
+ if(matches.some(f=>f.foodId===selectedBefore))select.value=selectedBefore;
  updateSelectedFoodMessage();
  if(!matches.length){
   document.getElementById("foodSearchMessage").textContent="該当する食品がありません。別の名称で検索してください。";

@@ -237,36 +237,29 @@ test("multiple custom dish matches are blocked rather than selecting the first",
  assert.ok(index.includes('voiceAnalysisBlocked=true;\n   document.getElementById("foodSelect").value="";'));
 });
 
-test("multiple custom dishes are rejected in executable analysis flow without writing storage",()=>{
+test("distinct custom dishes parse independently with correct gram amounts",()=>{
  const html=fs.readFileSync(require.resolve("../index.html"),"utf8");
- const start=html.indexOf("function analyzeNaturalMealText(){");
- const end=html.indexOf("\nlet voiceItems=[];",start);
+ const start=html.indexOf("function parseMixedMealItems(text){");
+ const end=html.indexOf("function findFoodFromVoice(text){",start);
  assert.ok(start>=0&&end>start);
- const nodes={
-  voiceText:{value:"テスト料理A100gとテスト料理B100g"},
-  foodSelect:{value:"old"},
-  foodGrams:{value:"100"},
-  mealType:{value:"lunch"},
-  voiceMessage:{textContent:"",className:""}
- };
+ const dishes=[{dishId:"a",name:"親子丼",aliases:[]},{dishId:"b",name:"サラダ",aliases:[]}];
  const ctx=vm.createContext({
-  document:{getElementById:id=>nodes[id]||{value:""}},
-  normalizeVoiceText:s=>s,voiceItems:[],voiceAnalysisBlocked:false,
-  renderVoiceItems:()=>{},detectMealTypeFromText:()=>null,
-  setVoiceAnalysisFeedback:(message,type)=>{nodes.voiceMessage.textContent=({error:"⚠ 要修正：",warning:"ⓘ 要確認：",success:"✓ 解析成功："}[type]||"")+message;nodes.voiceMessage.className="analysis-feedback "+type;},
-  hasUnrecognizedFood:()=>false,parseVoiceItems:()=>[],
-  findCustomDishMatches:()=>[{name:"テスト料理A"},{name:"テスト料理B"}],
-  parseVoiceAmount:()=>100,
-  foodMap:new Map(),foodData:[],renderFoodOptions:()=>{},
-  updateSelectedFoodMessage:()=>{},WellBodyModels:{customDishToFood:()=>{throw Error("should not convert");}}
+  normalizeVoiceText:s=>s,
+  findFoodMatches:()=>[],
+  findCustomDishMatches:part=>dishes.filter(d=>part.includes(d.name)),
+  parseNaturalQuantity:part=>{const m=part.match(/(\\d+)g/);return {kind:"grams",grams:m?Number(m[1]):null};},
+  WellBodyModels:{customDishToFood:d=>({foodId:"custom:"+d.dishId,name:d.name})}
  });
  vm.runInContext(html.slice(start,end),ctx);
- vm.runInContext("analyzeNaturalMealText()",ctx);
- assert.equal(ctx.voiceAnalysisBlocked,true);
- assert.equal(nodes.foodSelect.value,"");
- assert.equal(nodes.foodGrams.value,"");
- assert.match(nodes.voiceMessage.textContent,/複数のマイ料理が見つかりました/);
- assert.match(nodes.voiceMessage.className,/error/);
+ const items=vm.runInContext('parseMixedMealItems("昼食に親子丼300gとサラダ100g")',ctx);
+ assert.equal(items.length,2);
+ assert.equal(items[0].food.foodId,"custom:a");
+ assert.equal(items[0].grams,300);
+ assert.equal(items[1].food.foodId,"custom:b");
+ assert.equal(items[1].grams,100);
+ const missing=vm.runInContext('parseMixedMealItems("親子丼とサラダ100g")',ctx);
+ assert.equal(missing[0].grams,null);
+ assert.equal(missing[1].grams,100);
 });
 
 test("meal save failure rolls back in-memory data and preserves input",()=>{

@@ -948,7 +948,7 @@ document.getElementById("voiceText").addEventListener("input",()=>{
  renderVoiceItems();
  document.getElementById("foodSelect").value="";
  document.getElementById("foodGrams").value="";
- document.getElementById("voiceMessage").textContent="入力が変更されました。もう一度解析してください。";
+ setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");
 });
 loadCustomDishes();
 loadFoodMaster().then(()=>loadMeals());

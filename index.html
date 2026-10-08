@@ -426,6 +426,22 @@ function parseVoiceItems(text){
  });
 }
 
+function parseMixedMealItems(text){
+ const parts=normalizeVoiceText(text).split(/(?:と|、|,|及び|および)/).map(x=>x.trim()).filter(Boolean);
+ const results=[];
+ for(const part of parts){
+  const matches=findFoodMatches(part),dishes=findCustomDishMatches(part);
+  if(matches.length+dishes.length!==1)return null;
+  const food=matches.length?matches[0].food:WellBodyModels.customDishToFood(dishes[0]);
+  if(!food)return null;
+  const name=matches.length?matches[0].alias:[dishes[0].name,...dishes[0].aliases].filter(n=>part.includes(n)).sort((a,b)=>b.length-a.length)[0];
+  if(!name)return null;
+  const quantity=parseNaturalQuantity(part.slice(part.indexOf(name)+name.length));
+  results.push({food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null});
+ }
+ return results.length>1?results:null;
+}
+
 function findFoodFromVoice(text){
  const items=parseVoiceItems(text);
  if(items.length)return items[0].food;
@@ -486,6 +502,31 @@ function analyzeNaturalMealText(){
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
   setVoiceAnalysisFeedback("未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。","error");
+  return;
+ }
+ const mixedItems=parseMixedMealItems(spoken);
+ if(mixedItems){
+  if(new Set(mixedItems.map(item=>item.food.foodId)).size!==mixedItems.length){
+   voiceAnalysisBlocked=true;
+   setVoiceAnalysisFeedback("同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。","error");
+   return;
+  }
+  if(mixedItems.some(item=>!item.grams)){
+   voiceAnalysisBlocked=true;
+   document.getElementById("foodSelect").value="";
+   document.getElementById("foodGrams").value="";
+   setVoiceAnalysisFeedback("量が分からない食品があります。各食品のg数を確認してください。","warning");
+   return;
+  }
+  mixedItems.forEach(item=>{
+   if(!foodMap.has(item.food.foodId)){
+    foodMap.set(item.food.foodId,item.food);
+    foodData.push(item.food);
+   }
+  });
+  renderFoodOptions();
+  mixedItems.forEach(item=>queueVoiceItem(item.food,item.grams));
+  setVoiceAnalysisFeedback("入力内容から"+mixedItems.length+"件を見つけました。内容を確認してから記録してください。","success");
   return;
  }
  const items=parseVoiceItems(spoken);

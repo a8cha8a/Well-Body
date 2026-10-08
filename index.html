@@ -494,7 +494,7 @@ function addMeal(){
  if(!meal)return;
  meals.push(meal);
  const saveResult=WellBodyStorage.create().saveMeals(meals);
- if(saveResult&&saveResult.ok===false){
+ if(saveResult!==true){
   meals.pop();
   const message=document.getElementById("mealInputMessage");
   if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");

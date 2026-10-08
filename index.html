@@ -732,6 +732,20 @@ function addMeal(){
  document.getElementById("foodGrams").value=100;
 }
 
+function deleteMealById(mealId){
+ const meal=meals.find(m=>m.mealId===mealId);
+ if(!meal)return;
+ if(!window.confirm("この食事記録を削除しますか？\n削除後は元に戻せません。"))return;
+ const next=meals.filter(m=>m.mealId!==mealId);
+ if(WellBodyStorage.create().saveMeals(next)!==true){
+  setMealInputFeedback("削除を保存できませんでした。記録は変更していません。","error");
+  return;
+ }
+ meals=next;
+ renderMeals();
+ setMealInputFeedback("食事記録を削除しました。今日のPFCを更新しました。","success");
+}
+
 function renderMeals(){
  const today=dateKey();
  const todays=meals.filter(m=>m.date===today);
@@ -741,6 +755,19 @@ function renderMeals(){
  const totals={kcal:0,p:0,f:0,c:0};
  todays.forEach((m,index)=>{
   const typeName={breakfast:"朝食",lunch:"昼食",snack:"間食",dinner:"夕食"}[m.type];
+  const group=document.createElement("li");
+  const label=document.createElement("strong");
+  label.textContent=(typeName||"食事")+"（"+(m.items||[]).length+"品）";
+  group.appendChild(label);
+  const remove=document.createElement("button");
+  remove.type="button";
+  remove.className="secondary";
+  remove.textContent="この食事を削除";
+  remove.setAttribute("aria-label",(typeName||"食事")+"の記録を削除");
+  remove.addEventListener("click",()=>deleteMealById(m.mealId));
+  group.appendChild(document.createTextNode(" "));
+  group.appendChild(remove);
+  list.appendChild(group);
   (m.items||[]).forEach(item=>{
    const food=foodMap.get(item.foodId);
    const foodName=food ? food.name : "不明な食品";

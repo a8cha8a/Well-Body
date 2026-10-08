@@ -448,7 +448,7 @@ function detectMealTypeFromText(text){
  if(/朝食|朝ごはん|朝御飯|朝に/.test(s))return "breakfast";
  if(/昼食|昼ごはん|昼御飯|昼に/.test(s))return "lunch";
  if(/間食|おやつ/.test(s))return "snack";
- if(/夕食|晩ごはん|晩御飯|夜ごはん|夜に/.test(s))return "dinner";
+ if(/夕食|夕飯|晩ごはん|晩御飯|夜ごはん|夜に/.test(s))return "dinner";
  return null;
 }
 
@@ -916,6 +916,14 @@ function resetDemo(){
 loadData();
 document.getElementById("foodSearch").addEventListener("input",renderFoodOptions);
 document.getElementById("foodSelect").addEventListener("change",updateSelectedFoodMessage);
+document.getElementById("voiceText").addEventListener("input",()=>{
+ voiceItems=[];
+ voiceAnalysisBlocked=true;
+ renderVoiceItems();
+ document.getElementById("foodSelect").value="";
+ document.getElementById("foodGrams").value="";
+ document.getElementById("voiceMessage").textContent="入力が変更されました。もう一度解析してください。";
+});
 loadCustomDishes();
 loadFoodMaster().then(()=>loadMeals());
 renderVoiceItems();

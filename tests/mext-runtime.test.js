@@ -181,3 +181,17 @@ test("meal saving rejects partial queue and blocked analyses",()=>{
  assert.ok(index.includes('if(voiceAnalysisBlocked){setMealInputFeedback('));
  assert.ok(index.includes('if(saveResult!==true){'));
 });
+
+test("custom dish registration is offline, validates inputs and preserves data on write failure",()=>{
+ assert.ok(index.includes('function registerCustomDish(){'));
+ assert.ok(index.includes('WellBodyModels.createCustomDish({'));
+ assert.ok(index.includes('saveCustomDishes(next)!==true'));
+ assert.ok(index.includes('入力内容は残っています。'));
+ assert.ok(index.includes('customDishes=next;'));
+ assert.ok(index.includes('customDishes.forEach(dish=>{'));
+ assert.ok(index.includes('WellBodyModels.customDishToFood(dish)'));
+});
+test("meal history does not interpolate user-provided food names as HTML",()=>{
+ assert.ok(index.includes('li.appendChild(document.createTextNode(" "+foodName+" "+item.grams+"g"));'));
+ assert.equal(index.includes('li.innerHTML="<strong>"+typeName+"</strong> "+foodName'),false);
+});

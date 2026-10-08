@@ -264,7 +264,7 @@ let voiceListening=false;
 
 function normalizeVoiceText(text){
  return String(text||"")
-  .replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+  .replace(/[０-９．－]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
   .replace(/　/g," ")
   .replace(/[、。]/g," ")
   .replace(/\s+/g," ")
@@ -282,12 +282,13 @@ const voiceAliases={
 
 function parseVoiceAmount(text){
  const s=normalizeVoiceText(text);
- let m=s.match(/(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
- if(m)return Number(m[1])*1000;
- m=s.match(/(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
- if(m)return Number(m[1]);
+ if(/(?:^|[^\d])[-−]\s*\d/.test(s))return null;
+ let m=s.match(/(^|[^\d.\-])(\d+(?:\.\d+)?)\s*(?:kg|キロ|キログラム)/i);
+ if(m)return Number(m[2])*1000;
+ m=s.match(/(^|[^\d.\-])(\d+(?:\.\d+)?)\s*(?:g|グラム)/i);
+ if(m)return Number(m[2]);
  const jp={"百":100,"二百":200,"三百":300,"四百":400,"五百":500,"六百":600,"七百":700,"八百":800,"九百":900};
- for(const k of Object.keys(jp))if(s.includes(k+"グラム"))return jp[k];
+ for(const k of Object.keys(jp).sort((a,b)=>b.length-a.length))if(s.includes(k+"グラム"))return jp[k];
  return null;
 }
 
@@ -325,6 +326,17 @@ function findFoodMatches(text){
   if(!selected.some(x=>m.start<x.end&&x.start<m.end))selected.push(m);
  }
  return selected.sort((a,b)=>a.start-b.start);
+}
+
+function hasUnrecognizedFood(text){
+ const parts=normalizeVoiceText(text).split(/(?:と|、|,|及び|および)/).map(x=>x.trim()).filter(Boolean);
+ return parts.some((part,index)=>{
+  const cleaned=part.replace(/^(?:朝食|昼食|夕食|晩ごはん|朝ごはん|昼ごはん|夜ごはん|夕飯|朝に|昼に|夜に)(?:は|に|で)?\s*/,"");
+  if(!cleaned)return false;
+  const hits=findFoodMatches(cleaned);
+  const customs=findCustomDishMatches(cleaned);
+  return !hits.length&&!customs.length;
+ });
 }
 
 function parseVoiceItems(text){
@@ -377,10 +389,18 @@ function analyzeNaturalMealText(){
  const message=document.getElementById("voiceMessage");
  const spoken=normalizeVoiceText(input?.value||"");
  voiceItems=[];
+ voiceAnalysisBlocked=false;
  renderVoiceItems();
  if(!spoken){if(message)message.textContent="食べたものを入力してください。";return;}
  const mealType=detectMealTypeFromText(spoken);
  if(mealType)document.getElementById("mealType").value=mealType;
+ if(hasUnrecognizedFood(spoken)){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  if(message)message.textContent="未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。";
+  return;
+ }
  const items=parseVoiceItems(spoken);
  if(items.length){
   const completeItems=items.filter(item=>item.grams);
@@ -390,6 +410,7 @@ function analyzeNaturalMealText(){
    completeItems.forEach(item=>queueVoiceItem(item.food,item.grams));
   }
   if(incompleteItems.length){
+   voiceAnalysisBlocked=true;
    voiceItems=[];
    renderVoiceItems();
    const item=incompleteItems[0];
@@ -426,10 +447,12 @@ function analyzeNaturalMealText(){
  }
  document.getElementById("foodSelect").value="";
  document.getElementById("foodGrams").value="";
+ voiceAnalysisBlocked=true;
  if(message)message.textContent="登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。";
 }
 
 let voiceItems=[];
+let voiceAnalysisBlocked=false;
 
 function renderVoiceItems(){
  const list=document.getElementById("voiceItems");
@@ -466,6 +489,7 @@ function setMealInputFeedback(message,type){
 }
 function addMeal(){
  setMealInputFeedback("","");
+ if(voiceAnalysisBlocked){setMealInputFeedback("未解決の食品があります。入力内容を修正して再解析してください。","error");return;}
  const type=document.getElementById("mealType").value;
  const rawItems=voiceItems.length?[...voiceItems]:null;
  const items=[];
@@ -473,8 +497,10 @@ function addMeal(){
   rawItems.forEach(item=>{
    const food=foodMap.get(item.foodId);
    const mealItem=WellBodyModels.createMealItem(food,item.grams);
-   if(mealItem)items.push(mealItem);
+   if(!mealItem){setMealInputFeedback("栄養値または量を確認できない食品があります。保存を中止しました。","error");return;}
+   items.push(mealItem);
   });
+  if(items.length!==rawItems.length)return;
  }else{
   const foodId=document.getElementById("foodSelect").value;
   const grams=Number(document.getElementById("foodGrams").value);

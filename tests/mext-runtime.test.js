@@ -236,3 +236,34 @@ test("multiple custom dish matches are blocked rather than selecting the first",
  assert.ok(index.includes("複数のマイ料理が見つかりました。誤記録防止のため1品ずつ入力してください。"));
  assert.ok(index.includes('voiceAnalysisBlocked=true;\n   document.getElementById("foodSelect").value="";'));
 });
+
+test("multiple custom dishes are rejected in executable analysis flow without writing storage",()=>{
+ const html=fs.readFileSync(require.resolve("../index.html"),"utf8");
+ const start=html.indexOf("function analyzeNaturalMealText(){");
+ const end=html.indexOf("\nlet voiceItems=[];",start);
+ assert.ok(start>=0&&end>start);
+ const nodes={
+  voiceText:{value:"テスト料理A100gとテスト料理B100g"},
+  foodSelect:{value:"old"},
+  foodGrams:{value:"100"},
+  mealType:{value:"lunch"},
+  voiceMessage:{textContent:"",className:""}
+ };
+ const ctx=vm.createContext({
+  document:{getElementById:id=>nodes[id]||{value:""}},
+  normalizeVoiceText:s=>s,voiceItems:[],voiceAnalysisBlocked:false,
+  renderVoiceItems:()=>{},detectMealTypeFromText:()=>null,
+  hasUnrecognizedFood:()=>false,parseVoiceItems:()=>[],
+  findCustomDishMatches:()=>[{name:"テスト料理A"},{name:"テスト料理B"}],
+  parseVoiceAmount:()=>100,
+  foodMap:new Map(),foodData:[],renderFoodOptions:()=>{},
+  updateSelectedFoodMessage:()=>{},WellBodyModels:{customDishToFood:()=>{throw Error("should not convert");}}
+ });
+ vm.runInContext(html.slice(start,end),ctx);
+ vm.runInContext("analyzeNaturalMealText()",ctx);
+ assert.equal(ctx.voiceAnalysisBlocked,true);
+ assert.equal(nodes.foodSelect.value,"");
+ assert.equal(nodes.foodGrams.value,"");
+ assert.match(nodes.voiceMessage.textContent,/複数のマイ料理が見つかりました/);
+ assert.match(nodes.voiceMessage.className,/error/);
+});

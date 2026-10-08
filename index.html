@@ -333,7 +333,9 @@ function parseVoiceItems(text){
  return foods.map((current,i)=>{
   const nextStart=i+1<foods.length?foods[i+1].start:s.length;
   const segment=s.slice(current.end,nextStart);
-  const quantity=parseNaturalQuantity(segment);
+  // Do not assign a later, unrecognized food\'s quantity to this food.
+  const ambiguous=/(?:と|、|,|及び|および)\s*[^\d\s]+\s*\d+(?:\.\d+)?\s*(?:g|グラム|kg|キロ)/i.test(segment);
+  const quantity=ambiguous?{kind:"unknown",grams:null}:parseNaturalQuantity(segment);
   return {food:current.food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null,quantity};
  });
 }
@@ -374,6 +376,8 @@ function analyzeNaturalMealText(){
  const input=document.getElementById("voiceText");
  const message=document.getElementById("voiceMessage");
  const spoken=normalizeVoiceText(input?.value||"");
+ voiceItems=[];
+ renderVoiceItems();
  if(!spoken){if(message)message.textContent="食べたものを入力してください。";return;}
  const mealType=detectMealTypeFromText(spoken);
  if(mealType)document.getElementById("mealType").value=mealType;
@@ -434,7 +438,7 @@ function renderVoiceItems(){
  voiceItems.forEach((item,index)=>{
   const food=foodData.find(f=>f.foodId===item.foodId);
   const li=document.createElement("li");
-  li.innerHTML="<strong>"+(index+1)+".</strong> "+food.name+" "+item.grams+"g";
+  li.textContent=(index+1)+". "+(food?.name||"不明な食品")+" "+item.grams+"g";
   list.appendChild(li);
  });
 }

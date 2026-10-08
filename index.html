@@ -395,7 +395,12 @@ function analyzeNaturalMealText(){
  voiceItems=[];
  voiceAnalysisBlocked=false;
  renderVoiceItems();
- if(!spoken){if(message)message.textContent="食べたものを入力してください。";return;}
+ if(!spoken){
+  voiceAnalysisBlocked=true;
+  document.getElementById("foodSelect").value="";
+  document.getElementById("foodGrams").value="";
+  if(message)message.textContent="食べたものを入力してください。";return;
+ }
  const mealType=detectMealTypeFromText(spoken);
  if(mealType)document.getElementById("mealType").value=mealType;
  if(hasUnrecognizedFood(spoken)){

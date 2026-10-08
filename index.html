@@ -453,18 +453,23 @@ function parseVoiceItems(text){
 
 function parseMixedMealItems(text){
  const parts=normalizeVoiceText(text).split(/(?:と|、|,|及び|および)/).map(x=>x.trim()).filter(Boolean);
+ if(parts.length<2)return null;
  const results=[];
  for(const part of parts){
-  const matches=findFoodMatches(part),dishes=findCustomDishMatches(part);
-  if(matches.length+dishes.length!==1)return null;
-  const food=matches.length?matches[0].food:WellBodyModels.customDishToFood(dishes[0]);
+  const dishes=customDishes.filter(dish=>[dish.name,...dish.aliases].some(alias=>part.toLowerCase().includes(String(alias).toLowerCase())));
+  const matches=findFoodMatches(part);
+  if(dishes.length+matches.length!==1)return null;
+  const dish=dishes[0];
+  const food=dish?WellBodyModels.customDishToFood(dish):matches[0].food;
   if(!food)return null;
-  const name=matches.length?matches[0].alias:[dishes[0].name,...dishes[0].aliases].filter(n=>part.includes(n)).sort((a,b)=>b.length-a.length)[0];
+  const aliases=dish?[dish.name,...dish.aliases]:[matches[0].alias];
+  const name=aliases.filter(alias=>part.toLowerCase().includes(String(alias).toLowerCase())).sort((a,b)=>b.length-a.length)[0];
   if(!name)return null;
-  const quantity=parseNaturalQuantity(part.slice(part.indexOf(name)+name.length));
+  const at=part.toLowerCase().indexOf(String(name).toLowerCase());
+  const quantity=parseNaturalQuantity(part.slice(at+name.length));
   results.push({food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null});
  }
- return results.length>1?results:null;
+ return results;
 }
 
 function findFoodFromVoice(text){

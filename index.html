@@ -950,10 +950,15 @@ function recordWeight(){
   document.getElementById("recordMessage").textContent="日付と体重を入力してください。";
   return;
  }
- const existing=records.findIndex(r=>r.date===date);
- if(existing>=0)records[existing]={date,weight};else records.push({date,weight});
- records.sort((a,b)=>a.date.localeCompare(b.date));
- WellBodyStorage.create().saveWeightRecords(records);
+ const nextRecords=records.map(r=>({...r}));
+ const existing=nextRecords.findIndex(r=>r.date===date);
+ if(existing>=0)nextRecords[existing]={date,weight};else nextRecords.push({date,weight});
+ nextRecords.sort((a,b)=>a.date.localeCompare(b.date));
+ if(WellBodyStorage.create().saveWeightRecords(nextRecords)!==true){
+  document.getElementById("recordMessage").textContent="体重を保存できませんでした。記録は変更していません。端末の保存設定を確認してください。";
+  return;
+ }
+ records=nextRecords;
  calculate();
  renderHistory();
  renderChart();

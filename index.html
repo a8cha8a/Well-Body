@@ -484,6 +484,11 @@ function analyzeNaturalMealText(){
   return;
  }
  if(items.length){
+  if(items.length>1&&new Set(items.map(item=>item.food.foodId)).size!==items.length){
+   voiceAnalysisBlocked=true;
+   if(message)message.textContent="同じ食品が複数回あります。数量をまとめて入力するか、別々に記録してください。";
+   return;
+  }
   const completeItems=items.filter(item=>item.grams);
   const incompleteItems=items.filter(item=>!item.grams);
   voiceItems=[];

@@ -213,6 +213,10 @@ async function loadFoodMaster(){
   foodData.forEach(food=>foodMap.set(food.foodId,food));
   document.getElementById("foodSearchMessage").textContent="MEXT食品マスターを読み込めないため、確認用食品データを使用しています。";
  }
+ customDishes.forEach(dish=>{
+  const food=WellBodyModels.customDishToFood(dish);
+  if(food){foodData.push(food);foodMap.set(food.foodId,food);}
+ });
  renderFoodOptions();
 }
 function updateSelectedFoodMessage(){
@@ -575,12 +579,15 @@ function renderMeals(){
     totals.c+=item.carbs;
    }
    const li=document.createElement("li");
-   li.innerHTML="<strong>"+typeName+"</strong> "+foodName+" "+item.grams+"g";
-   if(hasNutrition){
-    li.innerHTML+="<br><span class='muted'>"+Math.round(item.kcal)+" kcal / P "+item.protein.toFixed(1)+"g / F "+item.fat.toFixed(1)+"g / C "+item.carbs.toFixed(1)+"g</span>";
-   }else{
-    li.innerHTML+="<br><span class='muted'>栄養値：不明</span>";
-   }
+   const heading=document.createElement("strong");
+   heading.textContent=typeName;
+   li.appendChild(heading);
+   li.appendChild(document.createTextNode(" "+foodName+" "+item.grams+"g"));
+   li.appendChild(document.createElement("br"));
+   const nutrition=document.createElement("span");
+   nutrition.className="muted";
+   nutrition.textContent=hasNutrition?Math.round(item.kcal)+" kcal / P "+item.protein.toFixed(1)+"g / F "+item.fat.toFixed(1)+"g / C "+item.carbs.toFixed(1)+"g":"栄養値：不明";
+   li.appendChild(nutrition);
    list.appendChild(li);
   });
  });

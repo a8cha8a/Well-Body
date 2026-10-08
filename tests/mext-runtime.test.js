@@ -268,3 +268,31 @@ test("multiple custom dishes are rejected in executable analysis flow without wr
  assert.match(nodes.voiceMessage.textContent,/複数のマイ料理が見つかりました/);
  assert.match(nodes.voiceMessage.className,/error/);
 });
+
+test("meal save failure rolls back in-memory data and preserves input",()=>{
+ const start=index.indexOf("function addMeal(){");
+ const end=index.indexOf("\nfunction renderMeals(){",start);
+ assert.ok(start>=0&&end>start);
+ const nodes={mealType:{value:"lunch"},foodSelect:{value:"test-food"},foodGrams:{value:"120"},mealInputMessage:{textContent:"",className:""}};
+ const original={mealId:"existing",date:"2026-10-08",type:"lunch",items:[]};
+ const meals=[original];
+ let saves=0,renderCalls=0;
+ const ctx=vm.createContext({
+  document:{getElementById:id=>nodes[id]||{value:""}},
+  voiceAnalysisBlocked:false,voiceItems:[],meals,foodMap:new Map([["test-food",{foodId:"test-food"}]]),
+  setMealInputFeedback:(message,type)=>{nodes.mealInputMessage.textContent=message;nodes.mealInputMessage.className=type;},
+  WellBodyModels:{createMealItem:()=>({foodId:"test-food",grams:120}),createMeal:data=>data},
+  WellBodyStorage:{create:()=>({saveMeals:()=>{saves++;return false;}})},
+  createMealId:()=>"new",dateKey:()=>"2026-10-08",
+  renderMeals:()=>{renderCalls++;},renderVoiceItems:()=>{renderCalls++;}
+ });
+ vm.runInContext(index.slice(start,end),ctx);
+ vm.runInContext("addMeal()",ctx);
+ assert.equal(saves,1);
+ assert.equal(meals.length,1);
+ assert.equal(meals[0],original);
+ assert.equal(nodes.foodGrams.value,"120");
+ assert.equal(renderCalls,0);
+ assert.match(nodes.mealInputMessage.textContent,/保存できませんでした/);
+ assert.equal(nodes.mealInputMessage.className,"error");
+});

@@ -523,6 +523,13 @@ function analyzeNaturalMealText(){
  const customHits=findCustomDishMatches(spoken);
  const grams=parseVoiceAmount(spoken);
  if(customHits.length){
+  if(customHits.length>1){
+   voiceAnalysisBlocked=true;
+   document.getElementById("foodSelect").value="";
+   document.getElementById("foodGrams").value="";
+   setVoiceAnalysisFeedback("複数のマイ料理が見つかりました。誤記録防止のため1品ずつ入力してください。","error");
+   return;
+  }
   const dish=customHits[0];
   const customFood=WellBodyModels.customDishToFood(dish);
   if(customFood){

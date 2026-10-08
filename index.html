@@ -380,11 +380,13 @@ function analyzeNaturalMealText(){
  if(items.length){
   const completeItems=items.filter(item=>item.grams);
   const incompleteItems=items.filter(item=>!item.grams);
+  voiceItems=[];
   if(completeItems.length){
-   voiceItems=[];
    completeItems.forEach(item=>queueVoiceItem(item.food,item.grams));
   }
   if(incompleteItems.length){
+   voiceItems=[];
+   renderVoiceItems();
    const item=incompleteItems[0];
    document.getElementById("foodSelect").value=item.food.foodId;
    updateSelectedFoodMessage();
@@ -466,7 +468,6 @@ function addMeal(){
    const mealItem=WellBodyModels.createMealItem(food,item.grams);
    if(mealItem)items.push(mealItem);
   });
-  voiceItems=[];
  }else{
   const foodId=document.getElementById("foodSelect").value;
   const grams=Number(document.getElementById("foodGrams").value);
@@ -498,6 +499,7 @@ function addMeal(){
   if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");
   return;
  }
+ voiceItems=[];
  renderMeals();
  renderVoiceItems();
  const message=document.getElementById("mealInputMessage");

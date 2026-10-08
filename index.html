@@ -551,7 +551,14 @@ function renderVoiceItems(){
 
 function queueVoiceItem(food,grams){
  voiceItems.push({foodId:food.foodId,grams});
- document.getElementById("foodSelect").value=food.foodId;
+ const select=document.getElementById("foodSelect");
+ if(!Array.from(select.options).some(option=>option.value===food.foodId)){
+  const option=document.createElement("option");
+  option.value=food.foodId;
+  option.textContent=food.name;
+  select.appendChild(option);
+ }
+ select.value=food.foodId;
  updateSelectedFoodMessage();
  document.getElementById("foodGrams").value=grams;
  renderVoiceItems();

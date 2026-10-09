@@ -17,6 +17,7 @@ const plan = { sex: "male", age: 36, height: 170, startWeight: 75, goalWeight: 6
 const records = [{ date: "2026-10-01", weight: 75 }];
 const meals = [{ date: "2026-10-01", type: "breakfast", foodId: "egg", grams: 100 }];
 
+api.getPlan();api.getWeightRecords();api.getMeals();
 assert.equal(api.savePlan(plan), true);
 assert.equal(api.saveWeightRecords(records), true);
 assert.equal(api.saveMeals(meals), true);
@@ -77,6 +78,7 @@ assert.deepEqual(api.getMeals(), { ok: true, value: [] });
 
 // Custom dishes use an isolated key and must not alter existing data.
 const customDishes = [{dishId:"custom-1",name:"親子丼",referenceWeight:300,kcal:520,protein:24,fat:14,carbs:72,source:"user",confidence:"confirmed"}];
+api.getCustomDishes();
 assert.equal(api.saveCustomDishes(customDishes), true);
 assert.deepEqual(api.getCustomDishes(), { ok: true, value: customDishes });
 assert.deepEqual(JSON.parse(storage.getItem("wellBodyCustomDishes")), customDishes);

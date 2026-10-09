@@ -187,7 +187,8 @@ test("custom dish registration is offline, validates inputs and preserves data o
  assert.ok(index.includes('WellBodyModels.createCustomDish({'));
  assert.ok(index.includes('saveCustomDishes(next)!==true'));
  assert.ok(index.includes('入力内容は残っています。'));
- assert.ok(index.includes('customDishes=next;'));
+ assert.ok(index.includes('storedCustomDishes=next;'));
+ assert.ok(index.includes('customDishes=[...customDishes,dish];'));
  assert.ok(index.includes('customDishes.forEach(dish=>{'));
  assert.ok(index.includes('WellBodyModels.customDishToFood(dish)'));
 });
@@ -273,10 +274,10 @@ test("meal save failure rolls back in-memory data and preserves input",()=>{
  let saves=0,renderCalls=0;
  const ctx=vm.createContext({
   document:{getElementById:id=>nodes[id]||{value:""}},
-  voiceAnalysisBlocked:false,voiceItems:[],meals,foodMap:new Map([["test-food",{foodId:"test-food"}]]),
+  voiceAnalysisBlocked:false,voiceItems:[],meals,storedMeals:[...meals],foodMap:new Map([["test-food",{foodId:"test-food"}]]),
   setMealInputFeedback:(message,type)=>{nodes.mealInputMessage.textContent=message;nodes.mealInputMessage.className=type;},
   WellBodyModels:{createMealItem:()=>({foodId:"test-food",grams:120}),createMeal:data=>data},
-  WellBodyStorage:{create:()=>({saveMeals:()=>{saves++;return false;}})},
+  WellBodyStorage:{KEYS:{meals:"wellBodyMeals"},create:()=>({canWrite:()=>true,saveMeals:()=>{saves++;return false;}})},
   createMealId:()=>"new",dateKey:()=>"2026-10-08",
   renderMeals:()=>{renderCalls++;},renderVoiceItems:()=>{renderCalls++;}
  });

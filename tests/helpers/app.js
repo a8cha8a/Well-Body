@@ -11,6 +11,7 @@ function app(initial={},options={}){
  const calls={write:[],remove:[]};
  const backend={getItem:k=>{if(failReads.has(k))throw Error('synthetic read failure');return data.get(k)??null;},setItem(k,v){calls.write.push(k);if(failWrites.has(k))throw Error('synthetic write failure');data.set(k,v);},removeItem(k){calls.remove.push(k);if(failRemoves.has(k))throw Error('synthetic remove failure');data.delete(k);}};
  const nodes=new Proxy({}, {get:(o,k)=>o[k]||(o[k]=node())});
+ Object.defineProperty(nodes.foodSelect,'options',{get:()=>nodes.foodSelect.children});
  nodes.mealType.value='lunch';nodes.foodGrams.value='100';
  let resolveFetch;const waiting=new Promise(resolve=>resolveFetch=resolve);
  const ctx=vm.createContext({document:{getElementById:k=>nodes[k],createElement:()=>node(),createTextNode:v=>({textContent:String(v)})},window:{confirm:()=>true},

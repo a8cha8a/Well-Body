@@ -47,6 +47,24 @@ try{
  assert.equal(await snapshot(page),saved);assert.equal(await page.locator('button').first().isDisabled(),true);passed++;console.log('PASS P05: missing required script offline safely stops all saves');
  await context.setOffline(false);await page.reload();await page.waitForFunction(()=>window.WellBodyRelease?.scriptsReady&&window.WellBodyRelease.foodReady);assert.equal(await snapshot(page),saved);passed++;console.log('PASS: exact-release repair after reconnect');
  await context.close();
+ const mealContext=await browser.newContext(),mealPage=await mealContext.newPage();
+ await mealPage.goto(base);await mealPage.waitForFunction(()=>window.WellBodyRelease?.scriptsReady&&window.WellBodyRelease.foodReady);
+ await mealPage.fill('#voiceText','白米');await mealPage.click('#voiceButton');await mealPage.click('button:has-text("食事を追加")');
+ assert.match(await mealPage.locator('#mealInputMessage').innerText(),/未解決/);assert.equal(await mealPage.evaluate(()=>localStorage.getItem('wellBodyMeals')),null);
+ await mealPage.fill('#voiceText','');assert.equal(await mealPage.locator('#mealInputMessage').innerText(),'');assert.equal(await mealPage.locator('#selectedFoodMessage').innerText(),'食品を選択してください。');
+ await mealPage.selectOption('#foodSelect','rice');await mealPage.fill('#foodGrams','100');await mealPage.click('button:has-text("食事を追加")');
+ assert.equal(await mealPage.evaluate(()=>JSON.parse(localStorage.wellBodyMeals).length),1);passed++;console.log('PASS meal: missing grams blocks, empty text restores real manual save');
+ await mealPage.selectOption('#foodSelect',[]);assert.equal(await mealPage.locator('#selectedFoodMessage').innerText(),'食品を選択してください。');
+ const mealSaved=await snapshot(mealPage);
+ for(const text of ['白米100gと未知料理100g','白米100gと納豆']){
+  await mealPage.fill('#voiceText',text);await mealPage.click('#voiceButton');await mealPage.selectOption('#foodSelect','rice');await mealPage.fill('#foodGrams','100');await mealPage.click('button:has-text("食事を追加")');assert.equal(await snapshot(mealPage),mealSaved);assert.match(await mealPage.locator('#mealInputMessage').innerText(),/未解決/);
+ }
+ passed++;console.log('PASS meal: unresolved single/multiple foods cannot bypass saving by manual selection');
+ await mealPage.fill('#voiceText','白米100g');await mealPage.click('#voiceButton');assert.equal(await mealPage.locator('#mealInputMessage').innerText(),'');
+ await mealPage.waitForFunction(async()=>{const r=await navigator.serviceWorker.getRegistration();return r?.active?.state==='activated';});
+ await mealPage.reload();await mealPage.waitForFunction(()=>window.WellBodyRelease?.scriptsReady&&window.WellBodyRelease.foodReady);
+ await mealContext.setOffline(true);await mealPage.fill('#voiceText','白米100g');await mealPage.click('#voiceButton');await mealPage.click('button:has-text("食事を追加")');assert.equal(await mealPage.evaluate(()=>JSON.parse(localStorage.wellBodyMeals).length),2);
+ passed++;console.log('PASS meal: corrected parsing clears warning, actual offline save succeeds');await mealContext.close();
  const mixed=await browser.newContext();const p=await mixed.newPage();badAsset=storage.url.slice(2);await p.goto(base);await p.waitForFunction(()=>document.getElementById('pwaMessage').textContent.includes('保存・削除'));assert.equal(await p.evaluate(()=>localStorage.length),0);assert.equal(await p.locator('button').first().isDisabled(),true);passed++;console.log('PASS P02/P03: old script bytes reject startup and incomplete worker cache');await mixed.close();
  console.log('Browser checks: '+passed+' passed, 0 failed');
 }finally{await browser.close();await new Promise(r=>server.close(r));await rm(folder,{recursive:true,force:true});}

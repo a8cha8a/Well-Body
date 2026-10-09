@@ -28,7 +28,7 @@ for (const update of [false, true]) {
       };
       const context = vm.createContext({
         records: original, document:{getElementById:id=>nodes[id]},
-        WellBodyStorage:{create:()=>api},
+        WellBodyStorage:{KEYS:storage.KEYS,create:()=>api},
         calculate:()=>{renders++;}, renderHistory:()=>{renders++;}, renderChart:()=>{renders++;}
       });
       vm.runInContext(index.slice(start, end), context);

@@ -22,6 +22,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </head>
 <body>
 <h1>減量進捗チェッカー</h1>
+<p id="storageMessage" class="feedback" role="status" aria-live="polite"></p>
 
 <div class="card">
 <h2>減量プラン</h2>
@@ -42,7 +43,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <label>目標体重(kg)<input id="goalInput" type="number" value="67" min="20" max="300" step="0.1"></label>
 <label>活動量<select id="activity"><option value="1.2">低い</option><option value="1.375">やや低い</option><option value="1.55" selected>普通</option><option value="1.725">高い</option><option value="1.9">非常に高い</option></select></label>
 </div>
-<button onclick="calculate()">計算する</button>
+<button onclick="savePlanAndCalculate()">計算する</button>
 </div>
 </div>
 
@@ -195,7 +196,9 @@ const demoFoodData=[
 ];
 let foodData=[...demoFoodData];
 let meals=[];
+let storedMeals=[];
 let customDishes=[];
+let storedCustomDishes=[];
 const foodMap=new Map(foodData.map(food=>[food.foodId,food]));
 let activeRecognition=null;
 
@@ -288,14 +291,37 @@ function renderCustomDishList(){
  });
  el.appendChild(list);
 }
-function loadCustomDishes(){
- try{
-  const result=WellBodyStorage.create().getCustomDishes();
-  customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
- }catch(e){customDishes=[]}
- renderCustomDishList();
+
+function storageProtectionMessage(key){
+ const status=WellBodyStorage.create().getState(key);
+ const reason=status==="unchecked"?"読み込みが完了していません":status==="invalid"?"保存データの形式を確認できません":"保存データを読み込めません";
+ return reason+"。元のデータを守るため保存・削除を停止しています。入力中の内容を控えてからSafariで再読み込みしてください。直らない場合は初期化せず、確認を依頼してください。";
 }
+function refreshStorageProtection(){
+ const api=WellBodyStorage.create();
+ const names={wellBodyPlan:"目標設定",wellBodyWeightRecords:"体重",wellBodyMeals:"食事",wellBodyCustomDishes:"マイ料理"};
+ const blocked=Object.keys(names).filter(key=>!api.canWrite(key));
+ const box=document.getElementById("storageMessage");
+ box.className="feedback"+(blocked.length?" error":"");
+ box.textContent=blocked.length?blocked.map(key=>names[key]+"："+storageProtectionMessage(key)).join("\n"):"";
+}
+
+function loadCustomDishes(){
+ const result=WellBodyStorage.create().getCustomDishes();
+ if(result.ok){
+  storedCustomDishes=result.value;
+  customDishes=result.value.map(value=>({...value,...WellBodyModels.createCustomDish(value)}));
+ }
+ renderCustomDishList();
+ refreshStorageProtection();
+}
+
 function registerCustomDish(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.customDishes)){
+  const message=document.getElementById("customDishMessage");
+  message.textContent=storageProtectionMessage(WellBodyStorage.KEYS.customDishes);
+  message.className="feedback error";return;
+ }
  const value=id=>document.getElementById(id).value.trim();
  const message=document.getElementById("customDishMessage");
  const fields=["customDishWeight","customDishKcal","customDishProtein","customDishFat","customDishCarbs"];
@@ -323,13 +349,14 @@ function registerCustomDish(){
   message.className="feedback error";
   return;
  }
- const next=[...customDishes,dish];
+ const next=[...storedCustomDishes,dish];
  if(WellBodyStorage.create().saveCustomDishes(next)!==true){
   message.textContent="保存できませんでした。入力内容は残っています。";
   message.className="feedback error";
   return;
  }
- customDishes=next;
+ storedCustomDishes=next;
+ customDishes=[...customDishes,dish];
  renderCustomDishList();
  const food=WellBodyModels.customDishToFood(dish);
  foodData.push(food);
@@ -350,12 +377,18 @@ function findCustomDishMatches(text){
 }
 
 function loadMeals(){
- try{
-  const result=WellBodyStorage.create().getMeals();
-  if(result.ok && result.value)meals=WellBodyModels.normalizeMeals(result.value,foodMap);
- }catch(e){meals=[]}
+ const api=WellBodyStorage.create();
+ const result=api.getMeals();
+ if(result.ok){
+  try{
+   const normalized=WellBodyModels.normalizeMeals(result.value,foodMap);
+   if(normalized.length===result.value.length){storedMeals=result.value;meals=normalized;}
+   else api.rejectRead(WellBodyStorage.KEYS.meals);
+  }catch(e){api.rejectRead(WellBodyStorage.KEYS.meals);}
+ }
  renderFoodOptions();
  renderMeals();
+ refreshStorageProtection();
 }
 
 let voiceListening=false;
@@ -672,6 +705,7 @@ function setMealInputFeedback(message,type){
  if(gramsInput)gramsInput.classList.toggle("input-error",type==="error"&&message.includes("量"));
 }
 function addMeal(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){setMealInputFeedback(storageProtectionMessage(WellBodyStorage.KEYS.meals),"error");return;}
  setMealInputFeedback("","");
  if(voiceAnalysisBlocked){setMealInputFeedback("未解決の食品があります。入力内容を修正して再解析してください。","error");return;}
  const type=document.getElementById("mealType").value;
@@ -716,14 +750,15 @@ function addMeal(){
  }
  const meal=WellBodyModels.createMeal({mealId:createMealId(),date:dateKey(),type,items});
  if(!meal)return;
- meals.push(meal);
- const saveResult=WellBodyStorage.create().saveMeals(meals);
+ const nextStoredMeals=[...storedMeals,meal];
+ const saveResult=WellBodyStorage.create().saveMeals(nextStoredMeals);
  if(saveResult!==true){
-  meals.pop();
   const message=document.getElementById("mealInputMessage");
   if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");
   return;
  }
+ storedMeals=nextStoredMeals;
+ meals=[...meals,meal];
  voiceItems=[];
  renderMeals();
  renderVoiceItems();
@@ -733,15 +768,18 @@ function addMeal(){
 }
 
 function deleteMealById(mealId){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){setMealInputFeedback(storageProtectionMessage(WellBodyStorage.KEYS.meals),"error");return;}
  const meal=meals.find(m=>m.mealId===mealId);
  if(!meal)return;
  if(!window.confirm("この食事記録を削除しますか？\n削除後は元に戻せません。"))return;
- const next=meals.filter(m=>m.mealId!==mealId);
+ const removedIndex=meals.indexOf(meal);
+ const next=storedMeals.filter((_,index)=>index!==removedIndex);
  if(WellBodyStorage.create().saveMeals(next)!==true){
   setMealInputFeedback("削除を保存できませんでした。記録は変更していません。","error");
   return;
  }
- meals=next;
+ storedMeals=next;
+ meals=meals.filter((_,index)=>index!==removedIndex);
  renderMeals();
  setMealInputFeedback("食事記録を削除しました。今日のPFCを更新しました。","success");
 }
@@ -850,6 +888,7 @@ function loadData(){
   const savedPlan=WellBodyStorage.create().getPlan();
   const savedRecords=WellBodyStorage.create().getWeightRecords();
   if(savedPlan.ok && savedPlan.value) plan=savedPlan.value;
+  if(savedPlan.ok)plan={...plan,startDate:plan.startDate||today(),goalDate:plan.goalDate||today()};
   if(savedRecords.ok && savedRecords.value) records=savedRecords.value;
  }catch(e){}
  document.getElementById("recordDate").value=today();
@@ -865,20 +904,28 @@ function loadData(){
  calculate();
  renderHistory();
  renderChart();
+ refreshStorageProtection();
+}
+
+function savePlanAndCalculate(){
+ const api=WellBodyStorage.create();
+ if(!api.canWrite(WellBodyStorage.KEYS.plan)){document.getElementById("message").textContent=storageProtectionMessage(WellBodyStorage.KEYS.plan);return;}
+ const value=id=>document.getElementById(id).value;
+ const next={...plan,sex:value("sex"),age:Number(value("age")),height:Number(value("height")),startWeight:Number(value("startWeight")),goalWeight:Number(value("goalInput")),activity:Number(value("activity")),startDate:value("startDate"),goalDate:value("goalDate")};
+ if(!next.age||!next.height||!next.startWeight||!next.goalWeight){document.getElementById("message").textContent="目標設定の入力を確認してください。";return;}
+ if(api.savePlan(next)!==true){document.getElementById("message").textContent="目標設定を保存できませんでした。入力内容は残っています。";return;}
+ plan=next;
+ calculate();
+ document.getElementById("message").textContent="目標設定を保存しました。";
 }
 
 function calculate(){
- const sex=document.getElementById("sex").value;
- const age=Number(document.getElementById("age").value);
- const height=Number(document.getElementById("height").value);
- const startWeight=Number(document.getElementById("startWeight").value);
- const goal=Number(document.getElementById("goalInput").value);
- const activity=Number(document.getElementById("activity").value);
- if(!age||!height||!startWeight||!goal)return;
- const startDate=document.getElementById("startDate").value;
- const goalDate=document.getElementById("goalDate").value;
- plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
- WellBodyStorage.create().savePlan(plan);
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.plan)){
+  for(const id of ["bmr","tdee","remain","targetCal","dashboardGoal","dashboardLeft","dashboardPercent","dashboardKcal","dashboardP","dashboardF","dashboardC"]){document.getElementById(id).textContent="未確認";}
+  return;
+ }
+ const {sex,age,height,startWeight,activity,startDate,goalDate}=plan;
+ const goal=plan.goalWeight;
  const current=records.length?records[records.length-1].weight:startWeight;
  const bmr=WellBodyCalculations.calculateBmr(sex,current,height,age);
  const tdee=WellBodyCalculations.calculateTdee(bmr,activity);
@@ -944,6 +991,7 @@ function updateProgress(current){
 }
 
 function recordWeight(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.weightRecords)){document.getElementById("recordMessage").textContent=storageProtectionMessage(WellBodyStorage.KEYS.weightRecords);return;}
  const date=document.getElementById("recordDate").value;
  const weight=Number(document.getElementById("recordWeight").value);
  if(!date||!weight){
@@ -952,7 +1000,7 @@ function recordWeight(){
  }
  const nextRecords=records.map(r=>({...r}));
  const existing=nextRecords.findIndex(r=>r.date===date);
- if(existing>=0)nextRecords[existing]={date,weight};else nextRecords.push({date,weight});
+ if(existing>=0)nextRecords[existing]={...nextRecords[existing],date,weight};else nextRecords.push({date,weight});
  nextRecords.sort((a,b)=>a.date.localeCompare(b.date));
  if(WellBodyStorage.create().saveWeightRecords(nextRecords)!==true){
   document.getElementById("recordMessage").textContent="体重を保存できませんでした。記録は変更していません。端末の保存設定を確認してください。";
@@ -1034,18 +1082,23 @@ function updateDashboard(){
 }
 
 function resetDemo(){
+ const api=WellBodyStorage.create();
+ const keys=[WellBodyStorage.KEYS.plan,WellBodyStorage.KEYS.weightRecords,WellBodyStorage.KEYS.meals];
+ const blocked=keys.find(key=>!api.canWrite(key));
+ if(blocked){document.getElementById("message").textContent=storageProtectionMessage(blocked);return;}
+ for(const clear of [()=>api.clearPlan(),()=>api.clearWeightRecords(),()=>api.clearMeals()]){
+  if(clear()!==true){
+   // Earlier keys may already be cleared. Never claim atomic rollback or success.
+   document.getElementById("message").textContent="初期化を完了できませんでした。一部だけ削除された可能性があります。再操作せず、入力内容を控えてSafariで再読み込みしてください。";
+   return;
+  }
+ }
  plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
- records=[];
- WellBodyStorage.create().clearPlan();
-  WellBodyStorage.create().clearWeightRecords();
-  WellBodyStorage.create().clearMeals();
-  meals=[];
+ records=[];meals=[];storedMeals=[];
  loadData();
- renderChart();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";
  document.getElementById("recordMessage").textContent="";
  renderMeals();
- renderChart();
  updateDashboard();
 }
 

@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<link rel="manifest" href="./manifest.webmanifest">\n<meta name="theme-color" content="#222222">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#222222">
 <title>減量進捗チェッカー</title>
 <style>
 *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;max-width:560px;margin:0 auto;padding:16px;background:#f5f5f5;color:#222}
@@ -22,6 +24,8 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </head>
 <body>
 <h1>減量進捗チェッカー</h1>
+<p id="pwaMessage" class="feedback error" role="status" aria-live="polite"></p>
+<p id="storageMessage" class="feedback" role="status" aria-live="polite"></p>
 
 <div class="card">
 <h2>減量プラン</h2>
@@ -42,7 +46,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <label>目標体重(kg)<input id="goalInput" type="number" value="67" min="20" max="300" step="0.1"></label>
 <label>活動量<select id="activity"><option value="1.2">低い</option><option value="1.375">やや低い</option><option value="1.55" selected>普通</option><option value="1.725">高い</option><option value="1.9">非常に高い</option></select></label>
 </div>
-<button onclick="calculate()">計算する</button>
+<button onclick="savePlanAndCalculate()">計算する</button>
 </div>
 </div>
 
@@ -52,7 +56,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 基礎代謝：<strong id="bmr">---</strong> kcal/日<br>
 推定消費カロリー：<strong id="tdee">---</strong> kcal/日<br>
 目標まで：<strong id="remain">---</strong> kg<br>
-1日の推定目標摂取カロリー：<strong id="targetCal">---</strong> kcal
+1日の推定目標摂取カロリー：<strong id="targetCal">---</strong><span id="targetCalUnit"> kcal</span>
 </div>
 </div>
 
@@ -66,7 +70,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <div class="big"><span id="current">75.0</span> kg</div>
 <div>目標 <strong id="goal">67.0</strong> kg　あと <strong id="left">8.0</strong> kg</div>
 <div class="bar"><div class="fill" id="progress"></div></div>
-<div class="note">進捗：<span id="percent">0</span>%</div>
+<div class="note">進捗：<span id="percent">0</span>% ／ <span id="weightStartDifference"></span></div>
 </div>
 
 <div class="card">
@@ -103,7 +107,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <div class="card">
 <h2>今日の残り目標</h2>
 <div class="result">
-残りカロリー：<strong id="remainingCalories">0</strong> kcal
+残りカロリー：<strong id="remainingCalories">0</strong><span id="remainingCaloriesUnit"> kcal</span>
 </div>
 <div class="macro">
 <div>残りP<strong id="remainingP">0.0g</strong></div>
@@ -195,7 +199,9 @@ const demoFoodData=[
 ];
 let foodData=[...demoFoodData];
 let meals=[];
+let storedMeals=[];
 let customDishes=[];
+let storedCustomDishes=[];
 const foodMap=new Map(foodData.map(food=>[food.foodId,food]));
 let activeRecognition=null;
 
@@ -206,9 +212,9 @@ function dateKey(){
 
 async function loadFoodMaster(){
  try{
-  const response=await fetch("./data/mext/food-master.json",{cache:"no-store"});
-  if(!response.ok)throw new Error("Food Master HTTP "+response.status);
-  const master=await response.json();
+  const response=window.WellBodyRelease?null:await fetch("./data/mext/food-master.json",{cache:"no-store"});
+  if(response&&!response.ok)throw new Error("Food Master HTTP "+response.status);
+  const master=window.WellBodyRelease?await window.WellBodyRelease.fetchFood():await response.json();
   const official=(Array.isArray(master.foods)?master.foods:[]).map(f=>WellBodyModels.createFood({
    foodId:"mext-"+f.foodId,
    name:f.name,
@@ -228,16 +234,19 @@ async function loadFoodMaster(){
   foodData.forEach(food=>foodMap.set(food.foodId,food));
   document.getElementById("foodSearchMessage").textContent="MEXT食品マスター："+official.length+"食品を利用できます。栄養値が不完全な食品は記録時に保護されます。";
  }catch(error){
+  if(window.WellBodyRelease)window.WellBodyRelease.foodReady=false;
   foodData=[...demoFoodData];
   foodMap.clear();
   foodData.forEach(food=>foodMap.set(food.foodId,food));
-  document.getElementById("foodSearchMessage").textContent="MEXT食品マスターを読み込めないため、確認用食品データを使用しています。";
+  document.getElementById("foodSearchMessage").textContent="食品データを確認できないため、食事の保存・削除を停止しています。通信を確認して再読み込みしてください。元の記録は変更しません。体重・目標設定・マイ料理の登録は利用できます。";
+  return false;
  }
  customDishes.forEach(dish=>{
   const food=WellBodyModels.customDishToFood(dish);
   if(food){foodData.push(food);foodMap.set(food.foodId,food);}
  });
  renderFoodOptions();
+ return true;
 }
 function updateSelectedFoodMessage(){
  const select=document.getElementById("foodSelect");
@@ -283,19 +292,42 @@ function renderCustomDishList(){
  const list=document.createElement("ul");
  customDishes.forEach(dish=>{
   const li=document.createElement("li");
-  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）";
+  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）／ "+dish.kcal+" kcal・P "+dish.protein+"g・F "+dish.fat+"g・C "+dish.carbs+"g";
   list.appendChild(li);
  });
  el.appendChild(list);
 }
-function loadCustomDishes(){
- try{
-  const result=WellBodyStorage.create().getCustomDishes();
-  customDishes=result.ok&&Array.isArray(result.value)?result.value.map(WellBodyModels.createCustomDish).filter(Boolean):[];
- }catch(e){customDishes=[]}
- renderCustomDishList();
+
+function storageProtectionMessage(key){
+ const status=WellBodyStorage.create().getState(key);
+ const reason=status==="unchecked"?"読み込みが完了していません":status==="invalid"?"保存データの形式を確認できません":"保存データを読み込めません";
+ return reason+"。元のデータを守るため保存・削除を停止しています。入力中の内容を控えてからSafariで再読み込みしてください。直らない場合は初期化せず、確認を依頼してください。";
 }
+function refreshStorageProtection(){
+ const api=WellBodyStorage.create();
+ const names={wellBodyPlan:"目標設定",wellBodyWeightRecords:"体重",wellBodyMeals:"食事",wellBodyCustomDishes:"マイ料理"};
+ const blocked=Object.keys(names).filter(key=>!api.canWrite(key));
+ const box=document.getElementById("storageMessage");
+ box.className="feedback"+(blocked.length?" error":"");
+ box.textContent=blocked.length?blocked.map(key=>names[key]+"："+storageProtectionMessage(key)).join("\n"):"";
+}
+
+function loadCustomDishes(){
+ const result=WellBodyStorage.create().getCustomDishes();
+ if(result.ok){
+  storedCustomDishes=result.value;
+  customDishes=result.value.map(value=>({...value,...WellBodyModels.createCustomDish(value)}));
+ }
+ renderCustomDishList();
+ refreshStorageProtection();
+}
+
 function registerCustomDish(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.customDishes)){
+  const message=document.getElementById("customDishMessage");
+  message.textContent=storageProtectionMessage(WellBodyStorage.KEYS.customDishes);
+  message.className="feedback error";return;
+ }
  const value=id=>document.getElementById(id).value.trim();
  const message=document.getElementById("customDishMessage");
  const fields=["customDishWeight","customDishKcal","customDishProtein","customDishFat","customDishCarbs"];
@@ -323,13 +355,14 @@ function registerCustomDish(){
   message.className="feedback error";
   return;
  }
- const next=[...customDishes,dish];
+ const next=[...storedCustomDishes,dish];
  if(WellBodyStorage.create().saveCustomDishes(next)!==true){
   message.textContent="保存できませんでした。入力内容は残っています。";
   message.className="feedback error";
   return;
  }
- customDishes=next;
+ storedCustomDishes=next;
+ customDishes=[...customDishes,dish];
  renderCustomDishList();
  const food=WellBodyModels.customDishToFood(dish);
  foodData.push(food);
@@ -350,12 +383,18 @@ function findCustomDishMatches(text){
 }
 
 function loadMeals(){
- try{
-  const result=WellBodyStorage.create().getMeals();
-  if(result.ok && result.value)meals=WellBodyModels.normalizeMeals(result.value,foodMap);
- }catch(e){meals=[]}
+ const api=WellBodyStorage.create();
+ const result=api.getMeals();
+ if(result.ok){
+  try{
+   const normalized=WellBodyModels.normalizeMeals(result.value,foodMap);
+   if(normalized.length===result.value.length){storedMeals=result.value;meals=normalized;}
+   else api.rejectRead(WellBodyStorage.KEYS.meals);
+  }catch(e){api.rejectRead(WellBodyStorage.KEYS.meals);}
+ }
  renderFoodOptions();
  renderMeals();
+ refreshStorageProtection();
 }
 
 let voiceListening=false;
@@ -516,14 +555,15 @@ function analyzeNaturalMealText(){
  const input=document.getElementById("voiceText");
  const message=document.getElementById("voiceMessage");
  const spoken=normalizeVoiceText(input?.value||"");
+ setMealInputFeedback("","");
  voiceItems=[];
  voiceAnalysisBlocked=false;
  renderVoiceItems();
  if(!spoken){
-  voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
-  setVoiceAnalysisFeedback("食べたものを入力してください。","error");return;
+  updateSelectedFoodMessage();
+  setVoiceAnalysisFeedback("食品と量を手動で選択できます。","neutral");return;
  }
  const mealType=detectMealTypeFromText(spoken);
  if(mealType)document.getElementById("mealType").value=mealType;
@@ -531,6 +571,7 @@ function analyzeNaturalMealText(){
   voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
+  updateSelectedFoodMessage();
   setVoiceAnalysisFeedback("未認識の食品があります。入力内容を修正して再解析してください。部分的な保存は行いません。","error");
   return;
  }
@@ -545,7 +586,8 @@ function analyzeNaturalMealText(){
    voiceAnalysisBlocked=true;
    document.getElementById("foodSelect").value="";
    document.getElementById("foodGrams").value="";
-   setVoiceAnalysisFeedback("量が分からない食品があります。各食品のg数を確認してください。","warning");
+   updateSelectedFoodMessage();
+   setVoiceAnalysisFeedback("量が分からない食品があります。自然文に各食品のg数を入力して再解析してください。","warning");
    return;
   }
   mixedItems.forEach(item=>{
@@ -564,6 +606,7 @@ function analyzeNaturalMealText(){
   voiceAnalysisBlocked=true;
   document.getElementById("foodSelect").value="";
   document.getElementById("foodGrams").value="";
+  updateSelectedFoodMessage();
   setVoiceAnalysisFeedback("マイ料理と食品が混在しています。誤記録防止のため別々に入力してください。","error");
   return;
  }
@@ -587,7 +630,7 @@ function analyzeNaturalMealText(){
    document.getElementById("foodSelect").value=item.food.foodId;
    updateSelectedFoodMessage();
    document.getElementById("foodGrams").value="";
-   setVoiceAnalysisFeedback(item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。量を確認してください。":"食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。","warning");
+   setVoiceAnalysisFeedback(item.quantity&&item.quantity.kind==="serving"?"食品と個数は分かりましたが、g換算できる基準がありません。自然文にg数を入力して再解析してください。":"食品は見つかりましたが、量が分からないものがあります。自然文にg数を入力して再解析してください。手動で記録する場合は自然文を空にしてください。","warning");
   }else setVoiceAnalysisFeedback("入力内容から"+completeItems.length+"件を見つけました。内容を確認してから記録してください。","success");
   return;
  }
@@ -598,6 +641,7 @@ function analyzeNaturalMealText(){
    voiceAnalysisBlocked=true;
    document.getElementById("foodSelect").value="";
    document.getElementById("foodGrams").value="";
+   updateSelectedFoodMessage();
    setVoiceAnalysisFeedback("複数のマイ料理が見つかりました。誤記録防止のため1品ずつ入力してください。","error");
    return;
   }
@@ -624,6 +668,7 @@ function analyzeNaturalMealText(){
  }
  document.getElementById("foodSelect").value="";
  document.getElementById("foodGrams").value="";
+ updateSelectedFoodMessage();
  voiceAnalysisBlocked=true;
  setVoiceAnalysisFeedback("登録済み食品に一致しませんでした。未登録料理として扱う候補です。勝手には記録しません。","error");
 }
@@ -672,6 +717,7 @@ function setMealInputFeedback(message,type){
  if(gramsInput)gramsInput.classList.toggle("input-error",type==="error"&&message.includes("量"));
 }
 function addMeal(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){setMealInputFeedback(storageProtectionMessage(WellBodyStorage.KEYS.meals),"error");return;}
  setMealInputFeedback("","");
  if(voiceAnalysisBlocked){setMealInputFeedback("未解決の食品があります。入力内容を修正して再解析してください。","error");return;}
  const type=document.getElementById("mealType").value;
@@ -716,14 +762,15 @@ function addMeal(){
  }
  const meal=WellBodyModels.createMeal({mealId:createMealId(),date:dateKey(),type,items});
  if(!meal)return;
- meals.push(meal);
- const saveResult=WellBodyStorage.create().saveMeals(meals);
+ const nextStoredMeals=[...storedMeals,meal];
+ const saveResult=WellBodyStorage.create().saveMeals(nextStoredMeals);
  if(saveResult!==true){
-  meals.pop();
   const message=document.getElementById("mealInputMessage");
   if(message)setMealInputFeedback("保存できませんでした。端末の保存設定を確認して、もう一度お試しください。","error");
   return;
  }
+ storedMeals=nextStoredMeals;
+ meals=[...meals,meal];
  voiceItems=[];
  renderMeals();
  renderVoiceItems();
@@ -733,20 +780,29 @@ function addMeal(){
 }
 
 function deleteMealById(mealId){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){setMealInputFeedback(storageProtectionMessage(WellBodyStorage.KEYS.meals),"error");return;}
  const meal=meals.find(m=>m.mealId===mealId);
  if(!meal)return;
  if(!window.confirm("この食事記録を削除しますか？\n削除後は元に戻せません。"))return;
- const next=meals.filter(m=>m.mealId!==mealId);
+ const removedIndex=meals.indexOf(meal);
+ const next=storedMeals.filter((_,index)=>index!==removedIndex);
  if(WellBodyStorage.create().saveMeals(next)!==true){
   setMealInputFeedback("削除を保存できませんでした。記録は変更していません。","error");
   return;
  }
- meals=next;
+ storedMeals=next;
+ meals=meals.filter((_,index)=>index!==removedIndex);
  renderMeals();
  setMealInputFeedback("食事記録を削除しました。今日のPFCを更新しました。","success");
 }
 
 function renderMeals(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){
+  for(const id of ["todayCalories","todayP","todayF","todayC","todayMealCount","remainingCalories","remainingP","remainingF","remainingC","calorieRate","dashboardKcal","dashboardP","dashboardF","dashboardC"]){document.getElementById(id).textContent="未確認";}
+  document.getElementById("mealAdvice").textContent="食事データを確認できるまで、集計・提案を停止しています。";
+  document.getElementById("remainingAdvice").textContent="食事データを確認できるまで、残りの摂取量は表示できません。";
+  return;
+ }
  const today=dateKey();
  const todays=meals.filter(m=>m.date===today);
  const list=document.getElementById("mealHistory");
@@ -807,12 +863,14 @@ function renderMeals(){
   const remainC=Math.max(0,cTarget-totals.c);
   const rate=Math.min(100,Math.round(totals.kcal/target*100));
   document.getElementById("remainingCalories").textContent=Math.round(remainKcal).toLocaleString();
+  document.getElementById("remainingCaloriesUnit").textContent=" kcal";
   document.getElementById("remainingP").textContent=remainP.toFixed(1)+"g";
   document.getElementById("remainingF").textContent=remainF.toFixed(1)+"g";
   document.getElementById("remainingC").textContent=remainC.toFixed(1)+"g";
   document.getElementById("calorieRate").textContent=rate+"%";
  }else{
-  const status=targetText==="計算不可"?"計算不可":"計算不要";
+  const status=targetText==="計算不可"?"計算不可":targetText==="算出不可"?"算出不可":"計算不要";
+  document.getElementById("remainingCaloriesUnit").textContent="";
   document.getElementById("remainingCalories").textContent=status;
   document.getElementById("remainingP").textContent=status;
   document.getElementById("remainingF").textContent=status;
@@ -850,6 +908,7 @@ function loadData(){
   const savedPlan=WellBodyStorage.create().getPlan();
   const savedRecords=WellBodyStorage.create().getWeightRecords();
   if(savedPlan.ok && savedPlan.value) plan=savedPlan.value;
+  if(savedPlan.ok)plan={...plan,startDate:plan.startDate||today(),goalDate:plan.goalDate||today()};
   if(savedRecords.ok && savedRecords.value) records=savedRecords.value;
  }catch(e){}
  document.getElementById("recordDate").value=today();
@@ -865,20 +924,28 @@ function loadData(){
  calculate();
  renderHistory();
  renderChart();
+ refreshStorageProtection();
+}
+
+function savePlanAndCalculate(){
+ const api=WellBodyStorage.create();
+ if(!api.canWrite(WellBodyStorage.KEYS.plan)){document.getElementById("message").textContent=storageProtectionMessage(WellBodyStorage.KEYS.plan);return;}
+ const value=id=>document.getElementById(id).value;
+ const next={...plan,sex:value("sex"),age:Number(value("age")),height:Number(value("height")),startWeight:Number(value("startWeight")),goalWeight:Number(value("goalInput")),activity:Number(value("activity")),startDate:value("startDate"),goalDate:value("goalDate")};
+ if(!next.age||!next.height||!next.startWeight||!next.goalWeight){document.getElementById("message").textContent="目標設定の入力を確認してください。";return;}
+ if(api.savePlan(next)!==true){document.getElementById("message").textContent="目標設定を保存できませんでした。入力内容は残っています。";return;}
+ plan=next;
+ calculate();
+ document.getElementById("message").textContent="目標設定を保存しました。";
 }
 
 function calculate(){
- const sex=document.getElementById("sex").value;
- const age=Number(document.getElementById("age").value);
- const height=Number(document.getElementById("height").value);
- const startWeight=Number(document.getElementById("startWeight").value);
- const goal=Number(document.getElementById("goalInput").value);
- const activity=Number(document.getElementById("activity").value);
- if(!age||!height||!startWeight||!goal)return;
- const startDate=document.getElementById("startDate").value;
- const goalDate=document.getElementById("goalDate").value;
- plan={sex,age,height,startWeight,goalWeight:goal,activity,startDate,goalDate};
- WellBodyStorage.create().savePlan(plan);
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.plan)){
+  for(const id of ["bmr","tdee","remain","targetCal","dashboardGoal","dashboardLeft","dashboardPercent","dashboardKcal","dashboardP","dashboardF","dashboardC"]){document.getElementById(id).textContent="未確認";}
+  return;
+ }
+ const {sex,age,height,startWeight,activity,startDate,goalDate}=plan;
+ const goal=plan.goalWeight;
  const current=records.length?records[records.length-1].weight:startWeight;
  const bmr=WellBodyCalculations.calculateBmr(sex,current,height,age);
  const tdee=WellBodyCalculations.calculateTdee(bmr,activity);
@@ -889,7 +956,9 @@ function calculate(){
  document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
  document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
  document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
- document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"計算不要":target.toLocaleString();
+ const targetIsValid=plannedLoss>0&&totalDays>0&&Number.isFinite(target);
+ document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"算出不可":targetIsValid?target.toLocaleString():"算出不可";
+ document.getElementById("targetCalUnit").textContent=targetIsValid?" kcal":"";
  updateProgress(current);
  updateSchedule(current);
  renderMeals();
@@ -908,7 +977,7 @@ function updateSchedule(current){
   return;
  }
  if(totalDays===0){
-  box.textContent="予定ペース：算出不可（目標期間が0日）";
+  box.textContent="予定ペース：算出不可（目標期間が0日） ／ 次にすること：目標日を開始日より後の日付に変更し、「計算する」を押してください。";
   return;
  }
  const plannedLoss=plan.startWeight-plan.goalWeight;
@@ -940,20 +1009,28 @@ function updateProgress(current){
  document.getElementById("left").textContent=WellBodyCalculations.calculateRemainingWeight(current,goal).toFixed(1);
  const percent=WellBodyCalculations.calculateProgress(start,current,goal);
  document.getElementById("percent").textContent=Math.round(percent);
+ const delta=current-start;
+ document.getElementById("weightStartDifference").textContent="開始時から "+(delta>0?"+":"")+delta.toFixed(1)+" kg";
  document.getElementById("progress").style.width=percent+"%";
 }
 
 function recordWeight(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.weightRecords)){document.getElementById("recordMessage").textContent=storageProtectionMessage(WellBodyStorage.KEYS.weightRecords);return;}
  const date=document.getElementById("recordDate").value;
  const weight=Number(document.getElementById("recordWeight").value);
  if(!date||!weight){
   document.getElementById("recordMessage").textContent="日付と体重を入力してください。";
   return;
  }
- const existing=records.findIndex(r=>r.date===date);
- if(existing>=0)records[existing]={date,weight};else records.push({date,weight});
- records.sort((a,b)=>a.date.localeCompare(b.date));
- WellBodyStorage.create().saveWeightRecords(records);
+ const nextRecords=records.map(r=>({...r}));
+ const existing=nextRecords.findIndex(r=>r.date===date);
+ if(existing>=0)nextRecords[existing]={...nextRecords[existing],date,weight};else nextRecords.push({date,weight});
+ nextRecords.sort((a,b)=>a.date.localeCompare(b.date));
+ if(WellBodyStorage.create().saveWeightRecords(nextRecords)!==true){
+  document.getElementById("recordMessage").textContent="体重を保存できませんでした。記録は変更していません。端末の保存設定を確認してください。";
+  return;
+ }
+ records=nextRecords;
  calculate();
  renderHistory();
  renderChart();
@@ -1029,18 +1106,23 @@ function updateDashboard(){
 }
 
 function resetDemo(){
+ const api=WellBodyStorage.create();
+ const keys=[WellBodyStorage.KEYS.plan,WellBodyStorage.KEYS.weightRecords,WellBodyStorage.KEYS.meals];
+ const blocked=keys.find(key=>!api.canWrite(key));
+ if(blocked){document.getElementById("message").textContent=storageProtectionMessage(blocked);return;}
+ for(const clear of [()=>api.clearPlan(),()=>api.clearWeightRecords(),()=>api.clearMeals()]){
+  if(clear()!==true){
+   // Earlier keys may already be cleared. Never claim atomic rollback or success.
+   document.getElementById("message").textContent="初期化を完了できませんでした。一部だけ削除された可能性があります。再操作せず、入力内容を控えてSafariで再読み込みしてください。";
+   return;
+  }
+ }
  plan={sex:"male",age:36,height:170,startWeight:75,goalWeight:67,activity:1.55,startDate:"",goalDate:""};
- records=[];
- WellBodyStorage.create().clearPlan();
-  WellBodyStorage.create().clearWeightRecords();
-  WellBodyStorage.create().clearMeals();
-  meals=[];
+ records=[];meals=[];storedMeals=[];
  loadData();
- renderChart();
  document.getElementById("message").textContent="デモデータを初期値に戻しました";
  document.getElementById("recordMessage").textContent="";
  renderMeals();
- renderChart();
  updateDashboard();
 }
 
@@ -1049,15 +1131,19 @@ document.getElementById("foodSearch").addEventListener("input",renderFoodOptions
 document.getElementById("foodSelect").addEventListener("change",updateSelectedFoodMessage);
 document.getElementById("voiceText").addEventListener("input",()=>{
  voiceItems=[];
- voiceAnalysisBlocked=true;
+ voiceAnalysisBlocked=normalizeVoiceText(document.getElementById("voiceText").value)!=="";
  renderVoiceItems();
  document.getElementById("foodSelect").value="";
  document.getElementById("foodGrams").value="";
- setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");
+ updateSelectedFoodMessage();
+ setMealInputFeedback("","");
+ if(voiceAnalysisBlocked)setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");
+ else setVoiceAnalysisFeedback("食品と量を手動で選択できます。","neutral");
 });
 loadCustomDishes();
-loadFoodMaster().then(()=>loadMeals());
+loadFoodMaster().then(ready=>{if(ready)loadMeals();else refreshStorageProtection();});
 renderVoiceItems();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));}</script>\n</body>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));}</script>
+</body>
 </html>

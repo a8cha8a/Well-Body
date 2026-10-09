@@ -119,7 +119,7 @@ test("natural parser preserves known foods even when quantity is unknown",()=>{
  assert.ok(index.includes('return {food:current.food,grams:quantity.kind==="grams"&&quantity.grams>0?quantity.grams:null,quantity};'));
  assert.ok(index.includes("const completeItems=items.filter(item=>item.grams);"));
  assert.ok(index.includes("const incompleteItems=items.filter(item=>!item.grams);"));
- assert.ok(index.includes("食品は見つかりましたが、量が分からないものがあります。量を入力してから記録してください。"));
+ assert.ok(index.includes("食品は見つかりましたが、量が分からないものがあります。自然文にg数を入力して再解析してください。手動で記録する場合は自然文を空にしてください。"));
  assert.ok(index.includes('document.getElementById("foodGrams").value="";'));
 });
 
@@ -129,7 +129,7 @@ test("natural quantities classify servings without unsafe gram conversion",()=>{
  assert.ok(index.includes('(個|杯|枚|本|パック|袋|皿|人前)'));
  assert.ok(index.includes('kind:"serving"'));
  assert.ok(index.includes('grams:null'));
- assert.ok(index.includes("g換算できる基準がありません。量を確認してください。"));
+ assert.ok(index.includes("g換算できる基準がありません。自然文にg数を入力して再解析してください。"));
  assert.ok(index.includes('/半分|半量/'));
  assert.ok(index.includes('/大盛り|少なめ|多め/'));
 });
@@ -187,7 +187,8 @@ test("custom dish registration is offline, validates inputs and preserves data o
  assert.ok(index.includes('WellBodyModels.createCustomDish({'));
  assert.ok(index.includes('saveCustomDishes(next)!==true'));
  assert.ok(index.includes('入力内容は残っています。'));
- assert.ok(index.includes('customDishes=next;'));
+ assert.ok(index.includes('storedCustomDishes=next;'));
+ assert.ok(index.includes('customDishes=[...customDishes,dish];'));
  assert.ok(index.includes('customDishes.forEach(dish=>{'));
  assert.ok(index.includes('WellBodyModels.customDishToFood(dish)'));
 });
@@ -273,10 +274,10 @@ test("meal save failure rolls back in-memory data and preserves input",()=>{
  let saves=0,renderCalls=0;
  const ctx=vm.createContext({
   document:{getElementById:id=>nodes[id]||{value:""}},
-  voiceAnalysisBlocked:false,voiceItems:[],meals,foodMap:new Map([["test-food",{foodId:"test-food"}]]),
+  voiceAnalysisBlocked:false,voiceItems:[],meals,storedMeals:[...meals],foodMap:new Map([["test-food",{foodId:"test-food"}]]),
   setMealInputFeedback:(message,type)=>{nodes.mealInputMessage.textContent=message;nodes.mealInputMessage.className=type;},
   WellBodyModels:{createMealItem:()=>({foodId:"test-food",grams:120}),createMeal:data=>data},
-  WellBodyStorage:{create:()=>({saveMeals:()=>{saves++;return false;}})},
+  WellBodyStorage:{KEYS:{meals:"wellBodyMeals"},create:()=>({canWrite:()=>true,saveMeals:()=>{saves++;return false;}})},
   createMealId:()=>"new",dateKey:()=>"2026-10-08",
   renderMeals:()=>{renderCalls++;},renderVoiceItems:()=>{renderCalls++;}
  });

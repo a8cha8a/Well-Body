@@ -18,7 +18,9 @@ function prepare(force=false){
   const cache=await caches.open(CACHE_NAME);
   if(!force&&await cache.match(absolute(READY)))return;
   try{
-   const responses=await Promise.all(ASSETS.map(async asset=>verified(await fetch(absolute(asset.url),{cache:'no-store'}),asset)));
+   // Preview toolbar injection changes HTML bytes. Request the canonical build,
+   // retaining authentication and the exact SHA-256 check for every asset.
+   const responses=await Promise.all(ASSETS.map(async asset=>verified(await fetch(absolute(asset.url),{cache:'no-store',headers:{'x-vercel-skip-toolbar':'1'}}),asset)));
    for(let i=0;i<ASSETS.length;i++)await cache.put(absolute(ASSETS[i].url),responses[i]);
    await cache.put(absolute(READY),new Response(RELEASE));
   }catch(error){await caches.delete(CACHE_NAME);throw error;}

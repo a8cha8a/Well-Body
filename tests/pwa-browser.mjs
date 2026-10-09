@@ -12,12 +12,16 @@ const root=resolve('.'),folder=await mkdtemp(join(tmpdir(),'well-body-browser-')
 const release=await buildPwa(root,folder,Buffer.from('{"foods":[]}'));
 const oldRef='38f0d3ab1415deda98269a8ad56be23ad5becd38';
 const old=new Map(['index.html','storage.js','models.js','calculations.js','manifest.webmanifest','service-worker.js'].map(name=>[name,execFileSync('git',['show',oldRef+':'+name])]));old.set('data/mext/food-master.json',Buffer.from('{"foods":[]}'));
-let phase='old',badAsset=null;
+let phase='old',badAsset=null,canonicalHtmlRequests=0;
 const server=createServer(async(req,res)=>{
  const name=new URL(req.url,'http://localhost').pathname.slice(1)||'index.html';
  try{
   let content=phase==='old'?old.get(name):await readFile(join(folder,name));
   if(!content)throw Error('missing');if(badAsset&&name===badAsset)content=Buffer.from('OLD_SCRIPT_OR_HTML');
+  if(phase==='new'&&name==='index.html'){
+   if(req.headers['x-vercel-skip-toolbar'])canonicalHtmlRequests++;
+   else content=Buffer.concat([content,Buffer.from('<!-- synthetic preview toolbar injection -->')]);
+  }
   res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript':name.endsWith('.json')?'application/json':'text/html','Cache-Control':'no-store'});res.end(content);
  }catch(error){res.writeHead(404,{'Content-Type':'text/plain'});res.end('Not found');}
 });
@@ -66,5 +70,6 @@ try{
  await mealContext.setOffline(true);await mealPage.fill('#voiceText','白米100g');await mealPage.click('#voiceButton');await mealPage.click('button:has-text("食事を追加")');assert.equal(await mealPage.evaluate(()=>JSON.parse(localStorage.wellBodyMeals).length),2);
  passed++;console.log('PASS meal: corrected parsing clears warning, actual offline save succeeds');await mealContext.close();
  const mixed=await browser.newContext();const p=await mixed.newPage();badAsset=storage.url.slice(2);await p.goto(base);await p.waitForFunction(()=>document.getElementById('pwaMessage').textContent.includes('保存・削除'));assert.equal(await p.evaluate(()=>localStorage.length),0);assert.equal(await p.locator('button').first().isDisabled(),true);passed++;console.log('PASS P02/P03: old script bytes reject startup and incomplete worker cache');await mixed.close();
+ assert.ok(canonicalHtmlRequests>0);passed++;console.log('PASS preview: Worker requests canonical HTML despite toolbar injection, exact hashes retained');
  console.log('Browser checks: '+passed+' passed, 0 failed');
 }finally{await browser.close();await new Promise(r=>server.close(r));await rm(folder,{recursive:true,force:true});}

@@ -44,7 +44,11 @@ const WellBodyStorage = (() => {
       states = sessions.get(storage);
     }
     function state(key) { return states[key] || "unchecked"; }
-    function canWrite(key) { return ["missing","ready"].includes(state(key)); }
+    function canWrite(key) {
+      const release=typeof window!=="undefined"&&window.WellBodyRelease;
+      if(typeof window!=="undefined"&&(!release||!release.scriptsReady||(key===KEYS.meals&&!release.foodReady)))return false;
+      return ["missing","ready"].includes(state(key));
+    }
     function get(key, fallback) {
       if (!storage) { states[key]="read-error"; return {ok:false,value:fallback}; }
       let raw;

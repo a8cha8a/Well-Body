@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<link rel="manifest" href="./manifest.webmanifest">\n<meta name="theme-color" content="#222222">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#222222">
 <title>減量進捗チェッカー</title>
 <style>
 *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;max-width:560px;margin:0 auto;padding:16px;background:#f5f5f5;color:#222}
@@ -54,7 +56,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 基礎代謝：<strong id="bmr">---</strong> kcal/日<br>
 推定消費カロリー：<strong id="tdee">---</strong> kcal/日<br>
 目標まで：<strong id="remain">---</strong> kg<br>
-1日の推定目標摂取カロリー：<strong id="targetCal">---</strong> kcal
+1日の推定目標摂取カロリー：<strong id="targetCal">---</strong><span id="targetCalUnit"> kcal</span>
 </div>
 </div>
 
@@ -68,7 +70,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <div class="big"><span id="current">75.0</span> kg</div>
 <div>目標 <strong id="goal">67.0</strong> kg　あと <strong id="left">8.0</strong> kg</div>
 <div class="bar"><div class="fill" id="progress"></div></div>
-<div class="note">進捗：<span id="percent">0</span>%</div>
+<div class="note">進捗：<span id="percent">0</span>% ／ <span id="weightStartDifference"></span></div>
 </div>
 
 <div class="card">
@@ -105,7 +107,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 <div class="card">
 <h2>今日の残り目標</h2>
 <div class="result">
-残りカロリー：<strong id="remainingCalories">0</strong> kcal
+残りカロリー：<strong id="remainingCalories">0</strong><span id="remainingCaloriesUnit"> kcal</span>
 </div>
 <div class="macro">
 <div>残りP<strong id="remainingP">0.0g</strong></div>
@@ -290,7 +292,7 @@ function renderCustomDishList(){
  const list=document.createElement("ul");
  customDishes.forEach(dish=>{
   const li=document.createElement("li");
-  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）";
+  li.textContent=dish.name+"（基準量 "+dish.referenceWeight+"g）／ "+dish.kcal+" kcal・P "+dish.protein+"g・F "+dish.fat+"g・C "+dish.carbs+"g";
   list.appendChild(li);
  });
  el.appendChild(list);
@@ -861,12 +863,14 @@ function renderMeals(){
   const remainC=Math.max(0,cTarget-totals.c);
   const rate=Math.min(100,Math.round(totals.kcal/target*100));
   document.getElementById("remainingCalories").textContent=Math.round(remainKcal).toLocaleString();
+  document.getElementById("remainingCaloriesUnit").textContent=" kcal";
   document.getElementById("remainingP").textContent=remainP.toFixed(1)+"g";
   document.getElementById("remainingF").textContent=remainF.toFixed(1)+"g";
   document.getElementById("remainingC").textContent=remainC.toFixed(1)+"g";
   document.getElementById("calorieRate").textContent=rate+"%";
  }else{
-  const status=targetText==="計算不可"?"計算不可":"計算不要";
+  const status=targetText==="計算不可"?"計算不可":targetText==="算出不可"?"算出不可":"計算不要";
+  document.getElementById("remainingCaloriesUnit").textContent="";
   document.getElementById("remainingCalories").textContent=status;
   document.getElementById("remainingP").textContent=status;
   document.getElementById("remainingF").textContent=status;
@@ -952,7 +956,9 @@ function calculate(){
  document.getElementById("bmr").textContent=Math.round(bmr).toLocaleString();
  document.getElementById("tdee").textContent=Math.round(tdee).toLocaleString();
  document.getElementById("remain").textContent=Math.max(0,current-goal).toFixed(1);
- document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"計算不要":target.toLocaleString();
+ const targetIsValid=plannedLoss>0&&totalDays>0&&Number.isFinite(target);
+ document.getElementById("targetCal").textContent=plannedLoss===0?"計算不要":plannedLoss<0?"計算不可":totalDays<=0?"算出不可":targetIsValid?target.toLocaleString():"算出不可";
+ document.getElementById("targetCalUnit").textContent=targetIsValid?" kcal":"";
  updateProgress(current);
  updateSchedule(current);
  renderMeals();
@@ -971,7 +977,7 @@ function updateSchedule(current){
   return;
  }
  if(totalDays===0){
-  box.textContent="予定ペース：算出不可（目標期間が0日）";
+  box.textContent="予定ペース：算出不可（目標期間が0日） ／ 次にすること：目標日を開始日より後の日付に変更し、「計算する」を押してください。";
   return;
  }
  const plannedLoss=plan.startWeight-plan.goalWeight;
@@ -1003,6 +1009,8 @@ function updateProgress(current){
  document.getElementById("left").textContent=WellBodyCalculations.calculateRemainingWeight(current,goal).toFixed(1);
  const percent=WellBodyCalculations.calculateProgress(start,current,goal);
  document.getElementById("percent").textContent=Math.round(percent);
+ const delta=current-start;
+ document.getElementById("weightStartDifference").textContent="開始時から "+(delta>0?"+":"")+delta.toFixed(1)+" kg";
  document.getElementById("progress").style.width=percent+"%";
 }
 
@@ -1136,5 +1144,6 @@ loadCustomDishes();
 loadFoodMaster().then(ready=>{if(ready)loadMeals();else refreshStorageProtection();});
 renderVoiceItems();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));}</script>\n</body>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));}</script>
+</body>
 </html>

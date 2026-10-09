@@ -22,6 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build and validate MEXT Food Master
-        run: npm run build:mext
+        run: npm run build
       - name: Run regression tests
         run: npm test
+      - name: Install Chromium for isolated PWA tests
+        run: npx playwright install --with-deps chromium
+      - name: Run real Service Worker browser tests
+        run: npm run test:pwa-browser

@@ -22,6 +22,7 @@ input.input-error{border:2px solid #d94b64;background:#fff8f9}
 </head>
 <body>
 <h1>減量進捗チェッカー</h1>
+<p id="pwaMessage" class="feedback error" role="status" aria-live="polite"></p>
 <p id="storageMessage" class="feedback" role="status" aria-live="polite"></p>
 
 <div class="card">
@@ -209,9 +210,9 @@ function dateKey(){
 
 async function loadFoodMaster(){
  try{
-  const response=await fetch("./data/mext/food-master.json",{cache:"no-store"});
-  if(!response.ok)throw new Error("Food Master HTTP "+response.status);
-  const master=await response.json();
+  const response=window.WellBodyRelease?null:await fetch("./data/mext/food-master.json",{cache:"no-store"});
+  if(response&&!response.ok)throw new Error("Food Master HTTP "+response.status);
+  const master=window.WellBodyRelease?await window.WellBodyRelease.fetchFood():await response.json();
   const official=(Array.isArray(master.foods)?master.foods:[]).map(f=>WellBodyModels.createFood({
    foodId:"mext-"+f.foodId,
    name:f.name,
@@ -231,16 +232,19 @@ async function loadFoodMaster(){
   foodData.forEach(food=>foodMap.set(food.foodId,food));
   document.getElementById("foodSearchMessage").textContent="MEXT食品マスター："+official.length+"食品を利用できます。栄養値が不完全な食品は記録時に保護されます。";
  }catch(error){
+  if(window.WellBodyRelease)window.WellBodyRelease.foodReady=false;
   foodData=[...demoFoodData];
   foodMap.clear();
   foodData.forEach(food=>foodMap.set(food.foodId,food));
-  document.getElementById("foodSearchMessage").textContent="MEXT食品マスターを読み込めないため、確認用食品データを使用しています。";
+  document.getElementById("foodSearchMessage").textContent="食品データを確認できないため、食事の保存・削除を停止しています。通信を確認して再読み込みしてください。元の記録は変更しません。体重・目標設定・マイ料理の登録は利用できます。";
+  return false;
  }
  customDishes.forEach(dish=>{
   const food=WellBodyModels.customDishToFood(dish);
   if(food){foodData.push(food);foodMap.set(food.foodId,food);}
  });
  renderFoodOptions();
+ return true;
 }
 function updateSelectedFoodMessage(){
  const select=document.getElementById("foodSelect");
@@ -785,6 +789,12 @@ function deleteMealById(mealId){
 }
 
 function renderMeals(){
+ if(!WellBodyStorage.create().canWrite(WellBodyStorage.KEYS.meals)){
+  for(const id of ["todayCalories","todayP","todayF","todayC","todayMealCount","remainingCalories","remainingP","remainingF","remainingC","calorieRate","dashboardKcal","dashboardP","dashboardF","dashboardC"]){document.getElementById(id).textContent="未確認";}
+  document.getElementById("mealAdvice").textContent="食事データを確認できるまで、集計・提案を停止しています。";
+  document.getElementById("remainingAdvice").textContent="食事データを確認できるまで、残りの摂取量は表示できません。";
+  return;
+ }
  const today=dateKey();
  const todays=meals.filter(m=>m.date===today);
  const list=document.getElementById("mealHistory");
@@ -1114,7 +1124,7 @@ document.getElementById("voiceText").addEventListener("input",()=>{
  setVoiceAnalysisFeedback("入力が変更されました。もう一度解析してください。","warning");
 });
 loadCustomDishes();
-loadFoodMaster().then(()=>loadMeals());
+loadFoodMaster().then(ready=>{if(ready)loadMeals();else refreshStorageProtection();});
 renderVoiceItems();
 </script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));}</script>\n</body>

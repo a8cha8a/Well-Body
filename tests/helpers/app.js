@@ -21,4 +21,4 @@ function app(initial={},options={}){
  run:code=>vm.runInContext(code,ctx),json:code=>JSON.parse(vm.runInContext('JSON.stringify('+code+')',ctx)),
  async ready(){resolveFetch({ok:true,json:async()=>({foods:[]})});await new Promise(resolve=>setImmediate(resolve));}};
 }
-module.exports={app,storage};
+module.exports={app,storage,node};
